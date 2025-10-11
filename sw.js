@@ -1,12 +1,14 @@
-/* Simple cache-first service worker for QBank */
-const CACHE = 'qbank-v2';
+/* Cache-first service worker for QBank */
+const CACHE = 'qbank-v3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './sw.js',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './apple-touch-icon.png',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,7 +29,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return; // only cache GETs
+  if (req.method !== 'GET') return;
   event.respondWith(
     caches.match(req).then(cached => {
       if (cached) return cached;

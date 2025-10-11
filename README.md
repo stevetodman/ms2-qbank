@@ -1,24 +1,25 @@
-# MS2 Mini‑QBank (GH Pages + PWA)
+# Update Pack: favicon + Apple Touch + Versioning
 
-This folder is ready to drop into a GitHub repository and serve from **GitHub Pages**.
+**What this does**
+- Adds `favicon.ico` and `apple-touch-icon.png` so installs and tabs look polished.
+- Shows a **version pill** (e.g., `v1.0`) in the header.
+- Bumps the service worker cache to **v3** so updates appear immediately after deploy.
 
-## Files
-- `index.html` — the single‑page app (practice + exam modes, keyboard shortcuts, local persistence).
-- `manifest.json` — PWA manifest (name, icons, theme).
-- `sw.js` — service worker for offline caching.
-- `icon-192.png`, `icon-512.png` — app icons.
-  
-## Host on GitHub Pages
-1. Create a new public repo (or use an existing one).
-2. Add these files to the root of the repo.
-3. Commit & push.
-4. In the repo: **Settings → Pages → Build and deployment → Source: Deploy from a branch**.  
-   Select your default branch and **root** (`/`) folder, then **Save**.
-5. Wait for the green “Your site is published” banner. The app will be live at the URL displayed.
+**How to apply**
+1. Drop these files into your repo root (replace existing ones):
+   - `index.html`
+   - `manifest.json`
+   - `sw.js`
+   - `icon-192.png`
+   - `icon-512.png`
+   - `apple-touch-icon.png`
+   - `favicon.ico`
+2. Commit & push.
+3. Visit your site and do a hard refresh (Cmd–Shift–R).
 
-> Tip: The app is installable (Add to Home Screen). Offline support is provided by `sw.js`.
+**How to cut a new release later**
+- Edit `index.html`: set `const VERSION = "v1.1";`
+- Edit `sw.js`: bump `const CACHE = 'qbank-v4';`
+- Commit & push.
 
-## Privacy
-All progress data is stored **locally** in your browser (`localStorage`). Nothing is sent to a server.
-
-— Built 2025-10-11
+That’s it.
