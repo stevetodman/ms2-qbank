@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: validate-questions
+        name: Validate MS2 QBank questions
+        entry: python scripts/validate_questions.py
+        language: python
+        types_or: [json]
+        pass_filenames: false
+        additional_dependencies:
+          - jsonschema>=4.19
