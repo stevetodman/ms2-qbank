@@ -1461,3 +1461,46 @@ The Search API exposes the question metadata index over HTTP for integration wit
    uvicorn src.search.app:app --reload
    ```
 3. The service will read question data from `data/questions/` and expose a `POST /search` endpoint supporting keyword, tag, and metadata filters. You can interact with the OpenAPI docs at `http://127.0.0.1:8000/docs` once the server is running.
+
+## Web client
+
+A Vite + React application that consumes the search and review APIs lives in `web/`. The interface lets learners create
+practice blocks, answer questions in timed/tutor/custom modes, and trigger review actions (bookmarking, tagging, approvals,
+and escalations).
+
+### Local development
+
+1. Install Node.js 18+.
+2. Install dependencies from the repository root:
+   ```bash
+   cd web
+   npm install
+   ```
+3. Optional: configure API endpoints (defaults assume the Vite proxy below is used):
+   ```bash
+   # .env.local
+   VITE_SEARCH_API_BASE_URL=/api/search
+   VITE_REVIEW_API_BASE_URL=/api/reviews
+   ```
+4. Start the dev server with proxying to the FastAPI apps:
+   ```bash
+   # from web/
+   VITE_SEARCH_PROXY_TARGET=http://127.0.0.1:8000 \
+   VITE_REVIEW_PROXY_TARGET=http://127.0.0.1:8001 \
+   npm run dev
+   ```
+   The app is available at http://127.0.0.1:5173 and automatically proxies `/api/search` and `/api/reviews` to the running
+   backend services. Adjust the proxy targets if the APIs listen on different ports.
+
+### Frontend quality checks
+
+Run the project’s linters, unit tests, and end-to-end smoke test from `web/`:
+
+```bash
+npm run lint
+npm test
+npm run test:e2e
+```
+
+The Playwright suite launches the Vite dev server automatically. Install the Playwright browser binaries once via
+`npx playwright install` if they are not already available.
