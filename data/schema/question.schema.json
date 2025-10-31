@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MS2 QBank Question",
+  "type": "object",
+  "required": [
+    "id",
+    "stem",
+    "choices",
+    "answer",
+    "explanation",
+    "metadata"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^q_[0-9a-f]{8}$" },
+    "stem": { "type": "string", "minLength": 1 },
+    "choices": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["label", "text"],
+        "properties": {
+          "label": { "type": "string", "pattern": "^[A-Z]$" },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "answer": { "type": "string", "pattern": "^[A-Z]$" },
+    "explanation": {
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "summary": { "type": "string" },
+        "rationales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["choice", "text"],
+            "properties": {
+              "choice": { "type": "string", "pattern": "^[A-Z]$" },
+              "text": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "subject",
+        "system",
+        "difficulty",
+        "status",
+        "keywords"
+      ],
+      "properties": {
+        "subject": {
+          "type": "string",
+          "enum": [
+            "Anatomy",
+            "Behavioral Science",
+            "Biochemistry",
+            "Biostatistics",
+            "Immunology",
+            "Microbiology",
+            "Pathology",
+            "Pharmacology",
+            "Physiology"
+          ]
+        },
+        "system": {
+          "type": "string",
+          "enum": [
+            "Cardiovascular",
+            "Endocrine",
+            "Gastrointestinal",
+            "Hematologic/Lymphatic",
+            "Musculoskeletal",
+            "Nervous",
+            "Renal",
+            "Reproductive",
+            "Respiratory",
+            "Skin/Connective Tissue",
+            "Multisystem"
+          ]
+        },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "status": { "type": "string", "enum": ["Unused", "Marked", "Incorrect", "Correct", "Omitted"] },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "uri"],
+            "properties": {
+              "type": { "type": "string", "enum": ["image", "audio", "video"] },
+              "uri": { "type": "string", "format": "uri" },
+              "alt_text": { "type": "string" }
+            }
+          }
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "source"],
+            "properties": {
+              "title": { "type": "string" },
+              "source": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
