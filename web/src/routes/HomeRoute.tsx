@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics.ts';
+import { AnalyticsDashboard } from '../components/AnalyticsDashboard.tsx';
 import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice.ts';
 import { formatSeconds } from '../utils/time.ts';
 
 export const HomeRoute = () => {
   const [recentSummary, setRecentSummary] = useState<PracticeSummary | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -20,6 +25,28 @@ export const HomeRoute = () => {
       setRecentSummary(null);
     }
   }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    setLoadingAnalytics(true);
+    setAnalyticsError(null);
+    try {
+      const snapshot = await fetchLatestAnalytics();
+      setAnalytics(snapshot);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load analytics';
+      setAnalyticsError(message);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAnalytics();
+  }, [loadAnalytics]);
+
+  const generatedLabel = analytics?.generatedAt
+    ? new Date(analytics.generatedAt).toLocaleString()
+    : null;
 
   return (
     <main>
@@ -47,6 +74,38 @@ export const HomeRoute = () => {
           </Link>
         </footer>
       </section>
+
+      <section className="card stack">
+        <header className="toolbar" style={{ justifyContent: 'space-between', gap: '1rem' }}>
+          <div className="stack" style={{ margin: 0 }}>
+            <h2>Analytics snapshot</h2>
+            {generatedLabel && (
+              <p>
+                Generated {generatedLabel} • {analytics?.isFresh ? 'Fresh' : 'Stale'} snapshot
+              </p>
+            )}
+            {!generatedLabel && !loadingAnalytics && !analyticsError && <p>No analytics available.</p>}
+          </div>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              void loadAnalytics();
+            }}
+            disabled={loadingAnalytics}
+          >
+            {loadingAnalytics ? 'Refreshing…' : 'Refresh metrics'}
+          </button>
+        </header>
+        {loadingAnalytics && <p>Loading analytics…</p>}
+        {analyticsError && (
+          <p role="alert" className="error">
+            Failed to load analytics: {analyticsError}
+          </p>
+        )}
+        {analytics && !loadingAnalytics && <AnalyticsDashboard snapshot={analytics} />}
+      </section>
+
       {recentSummary && (
         <section className="card stack">
           <header className="stack">
