@@ -1,0 +1,76 @@
+[
+  {
+    "id": "q_1a2b3c4d",
+    "stem": "A 25-year-old man presents with chest pain and dyspnea after a long-haul flight. Which of the following is the most likely diagnosis?",
+    "choices": [
+      { "label": "A", "text": "Tension pneumothorax" },
+      { "label": "B", "text": "Pulmonary embolism" },
+      { "label": "C", "text": "Acute myocardial infarction" },
+      { "label": "D", "text": "Pericarditis" }
+    ],
+    "answer": "B",
+    "explanation": {
+      "summary": "Prolonged immobilization increases the risk of deep vein thrombosis, which can embolize to the pulmonary circulation causing sudden dyspnea and pleuritic chest pain.",
+      "rationales": [
+        { "choice": "A", "text": "Tension pneumothorax typically presents with tracheal deviation and hyperresonance, which are absent here." },
+        { "choice": "C", "text": "Acute MI often presents with crushing substernal chest pain and EKG changes." },
+        { "choice": "D", "text": "Pericarditis causes sharp chest pain that improves when leaning forward." }
+      ]
+    },
+    "metadata": {
+      "subject": "Pathology",
+      "system": "Respiratory",
+      "difficulty": "Medium",
+      "status": "Unused",
+      "keywords": ["pulmonary embolism", "deep vein thrombosis", "risk factors"],
+      "media": [
+        {
+          "type": "image",
+          "uri": "https://example.com/images/pe_ct_scan.png",
+          "alt_text": "CT angiogram demonstrating a pulmonary embolus"
+        }
+      ],
+      "references": [
+        {
+          "title": "Pulmonary Embolism: Clinical Features",
+          "source": "UWORLD Respiratory Module",
+          "url": "https://example.com/references/pe"
+        }
+      ]
+    },
+    "tags": ["high-yield", "vascular"]
+  },
+  {
+    "id": "q_5e6f7a8b",
+    "stem": "A 6-year-old girl has a new murmur and petechiae after a recent sore throat. Laboratory testing reveals antistreptolysin O titers. Which organism is most likely responsible?",
+    "choices": [
+      { "label": "A", "text": "Staphylococcus aureus" },
+      { "label": "B", "text": "Streptococcus pyogenes" },
+      { "label": "C", "text": "Streptococcus pneumoniae" },
+      { "label": "D", "text": "Enterococcus faecalis" }
+    ],
+    "answer": "B",
+    "explanation": {
+      "summary": "Post-streptococcal complications like rheumatic fever and glomerulonephritis follow infections with Streptococcus pyogenes.",
+      "rationales": [
+        { "choice": "A", "text": "S. aureus commonly causes acute bacterial endocarditis but is not associated with antistreptolysin O titers." },
+        { "choice": "C", "text": "S. pneumoniae is a major cause of pneumonia and otitis media but not post-streptococcal sequelae." },
+        { "choice": "D", "text": "E. faecalis causes nosocomial infections and endocarditis but lacks the described serologic profile." }
+      ]
+    },
+    "metadata": {
+      "subject": "Microbiology",
+      "system": "Cardiovascular",
+      "difficulty": "Easy",
+      "status": "Unused",
+      "keywords": ["rheumatic fever", "post-streptococcal", "ASO titers"],
+      "references": [
+        {
+          "title": "Rheumatic Fever Pathogenesis",
+          "source": "UWORLD Cardiovascular Module"
+        }
+      ]
+    },
+    "tags": ["pediatrics", "infection"]
+  }
+]
