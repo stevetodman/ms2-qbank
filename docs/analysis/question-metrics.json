@@ -1,0 +1,21 @@
+{
+  "difficulty_distribution": {
+    "Easy": 1,
+    "Medium": 1
+  },
+  "review_status_distribution": {
+    "Unused": 2
+  },
+  "total_questions": 2,
+  "usage_summary": {
+    "average_usage": 12.5,
+    "maximum_usage": 18,
+    "minimum_usage": 7,
+    "total_usage": 25,
+    "tracked_questions": 2,
+    "usage_distribution": {
+      "7": 1,
+      "18": 1
+    }
+  }
+}
