@@ -1447,3 +1447,17 @@ Expanded accessibility features
 
 This document serves as both a comprehensive reference for understanding the current platform and a foundation for planning strategic improvements to maintain market leadership and better serve medical students preparing for USMLE Step 1.
 
+
+## Search API
+
+The Search API exposes the question metadata index over HTTP for integration with web and mobile clients.
+
+1. Install dependencies (ideally in a virtual environment):
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Start the FastAPI service with Uvicorn:
+   ```bash
+   uvicorn src.search.app:app --reload
+   ```
+3. The service will read question data from `data/questions/` and expose a `POST /search` endpoint supporting keyword, tag, and metadata filters. You can interact with the OpenAPI docs at `http://127.0.0.1:8000/docs` once the server is running.
