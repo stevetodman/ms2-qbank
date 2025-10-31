@@ -23,6 +23,7 @@
       "system": "Respiratory",
       "difficulty": "Medium",
       "status": "Unused",
+      "usage_count": 18,
       "keywords": ["pulmonary embolism", "deep vein thrombosis", "risk factors"],
       "media": [
         {
@@ -65,6 +66,7 @@
       "system": "Cardiovascular",
       "difficulty": "Easy",
       "status": "Unused",
+      "usage_count": 7,
       "keywords": ["rheumatic fever", "post-streptococcal", "ASO titers"],
       "references": [
         {

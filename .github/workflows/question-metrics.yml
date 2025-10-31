@@ -1,0 +1,25 @@
+name: Generate question metrics
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Generate metrics report
+        run: |
+          python scripts/generate_question_metrics.py \
+            --data-dir data/questions \
+            --output-markdown docs/analysis/question-metrics.md \
+            --output-json docs/analysis/question-metrics.json
+      - name: Ensure reports are up to date
+        run: git diff --exit-code
