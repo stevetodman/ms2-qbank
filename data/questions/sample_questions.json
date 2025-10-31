@@ -13,6 +13,7 @@
       "summary": "Prolonged immobilization increases the risk of deep vein thrombosis, which can embolize to the pulmonary circulation causing sudden dyspnea and pleuritic chest pain.",
       "rationales": [
         { "choice": "A", "text": "Tension pneumothorax typically presents with tracheal deviation and hyperresonance, which are absent here." },
+        { "choice": "B", "text": "Pulmonary embolism matches the patient's risk factors and acute dyspnea after prolonged immobilization." },
         { "choice": "C", "text": "Acute MI often presents with crushing substernal chest pain and EKG changes." },
         { "choice": "D", "text": "Pericarditis causes sharp chest pain that improves when leaning forward." }
       ]
@@ -54,6 +55,7 @@
       "summary": "Post-streptococcal complications like rheumatic fever and glomerulonephritis follow infections with Streptococcus pyogenes.",
       "rationales": [
         { "choice": "A", "text": "S. aureus commonly causes acute bacterial endocarditis but is not associated with antistreptolysin O titers." },
+        { "choice": "B", "text": "S. pyogenes causes pharyngitis that can trigger rheumatic fever and elevated antistreptolysin O titers." },
         { "choice": "C", "text": "S. pneumoniae is a major cause of pneumonia and otitis media but not post-streptococcal sequelae." },
         { "choice": "D", "text": "E. faecalis causes nosocomial infections and endocarditis but lacks the described serologic profile." }
       ]
@@ -67,7 +69,8 @@
       "references": [
         {
           "title": "Rheumatic Fever Pathogenesis",
-          "source": "UWORLD Cardiovascular Module"
+          "source": "UWORLD Cardiovascular Module",
+          "url": "https://example.com/references/rheumatic-fever"
         }
       ]
     },
