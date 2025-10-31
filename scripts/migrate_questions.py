@@ -9,9 +9,13 @@ The migration performs three primary tasks:
 * Removes deprecated or legacy-prefixed attributes so downstream validators
   only see the supported contract.
 
-Run the script directly to rewrite all JSON files under ``data/questions``::
+For large legacy exports (``.json`` arrays or JSON Lines ``.jsonl`` files) the
+script streams the input, writes sharded output files of ``--shard-size``
+records to ``--output-dir`` (``data/questions`` by default), and reports the
+normalisation work that would be performed. Example::
 
-    python scripts/migrate_questions.py
+    python scripts/migrate_questions.py legacy/questions.jsonl \
+        --output-dir data/questions --shard-size 250
 
 Use ``--dry-run`` to preview the planned changes without touching the files.
 """
@@ -22,9 +26,11 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from string import ascii_uppercase
 from typing import Callable, Iterable, Iterator, List, Sequence
+from typing import TextIO
 
 
 SUBJECT_CHOICES = {
@@ -164,11 +170,26 @@ STOP_WORDS = {
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "data_path",
+        "source",
         type=Path,
         nargs="?",
+        default=None,
+        help=(
+            "Path to a legacy question export (JSON array/JSONL file or directory). "
+            "Defaults to the canonical data/questions directory."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
         default=Path("data/questions"),
-        help="Path to a question JSON file or directory containing JSON files.",
+        help="Directory where sharded JSON files will be written.",
+    )
+    parser.add_argument(
+        "--shard-size",
+        type=int,
+        default=250,
+        help="Number of questions to include per output shard.",
     )
     parser.add_argument(
         "--dry-run",
@@ -178,19 +199,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def iter_question_files(path: Path) -> Iterator[Path]:
-    """Yield question JSON files under *path* in a stable order."""
+SUPPORTED_EXTENSIONS = {".json", ".jsonl", ".ndjson"}
 
-    if path.is_file() and path.suffix.lower() == ".json":
+
+def iter_legacy_sources(path: Path) -> Iterator[Path]:
+    """Yield JSON/JSONL source files in a stable order."""
+
+    if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
         yield path
         return
 
     if not path.exists():
         return
 
-    for json_path in sorted(path.rglob("*.json")):
-        if json_path.is_file():
-            yield json_path
+    for candidate in sorted(path.rglob("*")):
+        if candidate.is_file() and candidate.suffix.lower() in SUPPORTED_EXTENSIONS:
+            yield candidate
 
 
 def load_json(path: Path) -> object:
@@ -213,34 +237,173 @@ def dump_json(path: Path, data: object) -> None:
         handle.write("\n")
 
 
-def migrate_file(path: Path, *, dry_run: bool = False) -> tuple[int, int, List[str]]:
-    """Apply the migration to *path* and return a summary tuple.
+def iter_questions_from_file(path: Path) -> Iterator[dict]:
+    """Yield question-like objects from *path* without loading everything into memory."""
 
-    Returns ``(question_count, updated_count, notes)``.
-    """
+    suffix = path.suffix.lower()
+    if suffix in {".jsonl", ".ndjson"}:
+        with path.open("r", encoding="utf-8") as handle:
+            for line_no, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError as exc:  # pragma: no cover - runtime guard
+                    raise ValueError(
+                        f"{path}:{line_no}: invalid JSON - {exc.msg} (line {exc.lineno} column {exc.colno})"
+                    ) from exc
+                if isinstance(payload, dict):
+                    yield payload
+                else:
+                    continue
+        return
 
-    payload = load_json(path)
-    if not isinstance(payload, list):
-        raise SystemExit(f"{path}: expected a list of question objects")
+    # ``.json`` exports may be arrays or nested objects containing arrays.
+    if suffix == ".json":
+        first_char = peek_first_non_whitespace(path)
+        if first_char == "[":
+            with path.open("r", encoding="utf-8") as handle:
+                yield from iter_json_array_stream(handle, path)
+            return
 
-    notes: List[str] = []
-    updated = 0
+        payload = load_json(path)
+        question_list = extract_question_sequence(payload)
+        if question_list is None:
+            raise ValueError(f"{path}: unable to locate a question list in the JSON payload")
+        for item in question_list:
+            if isinstance(item, dict):
+                yield item
+        return
 
-    for index, question in enumerate(payload):
-        if not isinstance(question, dict):
-            notes.append(f"{path}[{index}]: skipped non-object entry")
+    raise ValueError(f"{path}: unsupported file extension '{suffix}'")
+
+
+def peek_first_non_whitespace(path: Path) -> str | None:
+    with path.open("r", encoding="utf-8") as handle:
+        while True:
+            char = handle.read(1)
+            if not char:
+                return None
+            if not char.isspace():
+                return char
+
+
+def iter_json_array_stream(handle: TextIO, source: Path) -> Iterator[dict]:
+    """Incrementally parse a JSON array from *handle* and yield dict entries."""
+
+    decoder = json.JSONDecoder()
+    buffer = ""
+    index = 0
+    array_started = False
+
+    while True:
+        if index >= len(buffer):
+            chunk = handle.read(65536)
+            if not chunk:
+                if array_started and buffer.strip() in {"", "]"}:
+                    return
+                if not array_started and not buffer.strip():
+                    return
+                raise ValueError(f"{source}: unexpected end of file while reading array")
+            buffer = buffer[index:] + chunk if index < len(buffer) else chunk
+            index = 0
             continue
 
-        changed, operations = migrate_question(question)
-        if changed:
-            updated += 1
-            note = ", ".join(operations)
-            notes.append(f"{path}[{index}]: {note}")
+        if not array_started:
+            char = buffer[index]
+            if char.isspace():
+                index += 1
+                continue
+            if char != "[":
+                raise ValueError(f"{source}: expected JSON array at top level")
+            array_started = True
+            index += 1
+            continue
 
-    if updated and not dry_run:
-        dump_json(path, payload)
+        char = buffer[index]
+        if char in " \t\r\n,":
+            index += 1
+            continue
+        if char == "]":
+            return
 
-    return len(payload), updated, notes
+        try:
+            obj, offset = decoder.raw_decode(buffer[index:])
+        except json.JSONDecodeError:
+            chunk = handle.read(65536)
+            if not chunk:
+                raise ValueError(f"{source}: truncated JSON value inside array")
+            buffer = buffer[index:] + chunk
+            index = 0
+            continue
+
+        if isinstance(obj, dict):
+            yield obj
+
+        index += offset
+        if index > 4096:
+            buffer = buffer[index:]
+            index = 0
+
+
+def extract_question_sequence(payload: object) -> list[dict] | None:
+    """Locate the first list of dict-like objects within *payload*."""
+
+    if isinstance(payload, list):
+        if payload and all(isinstance(item, dict) for item in payload):
+            return payload
+        if not payload:
+            return []
+
+    if isinstance(payload, dict):
+        for key in ("questions", "items", "data"):
+            value = payload.get(key)
+            if isinstance(value, list) and all(isinstance(item, dict) for item in value):
+                return value
+        for value in payload.values():
+            candidate = extract_question_sequence(value)
+            if candidate is not None:
+                return candidate
+
+    return None
+
+
+class QuestionShardWriter:
+    """Utility to collect migrated questions and persist them to sharded files."""
+
+    def __init__(self, output_dir: Path, shard_size: int, *, dry_run: bool = False) -> None:
+        if shard_size <= 0:
+            raise ValueError("shard_size must be a positive integer")
+        self.output_dir = output_dir
+        self.shard_size = shard_size
+        self.dry_run = dry_run
+        self._buffer: list[dict] = []
+        self._shard_index = 1
+        self.emitted_paths: list[Path] = []
+        self.total_written = 0
+
+    def add(self, question: dict) -> None:
+        self._buffer.append(question)
+        self.total_written += 1
+        if len(self._buffer) >= self.shard_size:
+            self._flush()
+
+    def finalize(self) -> list[Path]:
+        self._flush()
+        return self.emitted_paths
+
+    def _flush(self) -> None:
+        if not self._buffer:
+            return
+
+        shard_name = f"questions_{self._shard_index:04d}.json"
+        path = self.output_dir / shard_name
+        if not self.dry_run:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            dump_json(path, list(self._buffer))
+        self.emitted_paths.append(path)
+        self._buffer.clear()
+        self._shard_index += 1
 
 
 def migrate_question(question: dict) -> tuple[bool, List[str]]:
@@ -320,6 +483,11 @@ def migrate_question(question: dict) -> tuple[bool, List[str]]:
     metadata_updated, metadata_ops = migrate_metadata(metadata, question)
     if metadata_updated:
         record("; ".join(metadata_ops))
+
+    tags, tags_changed = normalise_tags(question.get("tags"), question)
+    if tags_changed:
+        question["tags"] = tags
+        record("normalised tags")
 
     # --- Remove deprecated attributes ---------------------------------------
     removed = remove_deprecated_attributes(question)
@@ -685,6 +853,69 @@ def generate_keywords(stem: object, metadata: dict) -> list[str]:
     return keywords[:5]
 
 
+def normalise_tags(raw: object, question: dict) -> tuple[list[str], bool]:
+    tags: list[str] = []
+    changed = False
+
+    if isinstance(raw, list):
+        for entry in raw:
+            if isinstance(entry, str) and entry.strip():
+                cleaned = entry.strip()
+                if cleaned not in tags:
+                    tags.append(cleaned)
+        if len(tags) != len(raw):
+            changed = True
+    elif isinstance(raw, str) and raw.strip():
+        tags = [raw.strip()]
+        changed = True
+    elif raw not in (None, [], {}):
+        changed = True
+
+    derived = derive_tags(question)
+    for tag in derived:
+        if tag not in tags:
+            tags.append(tag)
+            changed = True
+
+    if not tags:
+        tags = ["general"]
+        changed = True
+
+    return tags, changed
+
+
+def derive_tags(question: dict) -> list[str]:
+    tags: list[str] = []
+    metadata = question.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("subject", "system", "difficulty", "status"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                cleaned = value.strip()
+                if cleaned not in tags:
+                    tags.append(cleaned)
+        keywords = metadata.get("keywords")
+        if isinstance(keywords, list):
+            for entry in keywords:
+                if isinstance(entry, str) and entry.strip():
+                    cleaned = entry.strip()
+                    if cleaned not in tags:
+                        tags.append(cleaned)
+
+    stem = question.get("stem")
+    if isinstance(stem, str):
+        for token in re.findall(r"[A-Za-z][A-Za-z/-]+", stem.lower()):
+            if token in STOP_WORDS or len(token) < 5:
+                continue
+            candidate = token.strip()
+            if candidate and candidate not in tags:
+                tags.append(candidate)
+            if len(tags) >= 10:
+                break
+
+    return tags[:10]
+
+
 def normalise_media(raw: object, stem: object) -> tuple[list[dict[str, str]], bool]:
     if not isinstance(raw, list):
         return [], bool(raw)
@@ -795,30 +1026,71 @@ def to_string(value: object) -> str | None:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
 
-    files = list(iter_question_files(args.data_path))
-    if not files:
-        print(f"No JSON question files found under {args.data_path}.")
-        return 0
+    source_path = args.source or Path("data/questions")
+    output_dir: Path = args.output_dir
+
+    if not source_path.exists():
+        print(f"Error: {source_path} does not exist", file=sys.stderr)
+        return 2
+
+    try:
+        sources = list(iter_legacy_sources(source_path))
+    except ValueError as exc:  # pragma: no cover - runtime guard
+        print(exc, file=sys.stderr)
+        return 2
+
+    if not sources:
+        if source_path.is_file():
+            print(f"Error: {source_path} is not a supported JSON/JSONL export", file=sys.stderr)
+        else:
+            print(f"Error: No JSON files found under {source_path}", file=sys.stderr)
+        return 2
+
+    writer = QuestionShardWriter(output_dir, args.shard_size, dry_run=args.dry_run)
 
     total_questions = 0
-    total_updates = 0
+    changed_questions = 0
+    skipped_entries = 0
+    operation_counts: Counter[str] = Counter()
 
-    for path in files:
+    for source in sources:
         try:
-            count, updated, notes = migrate_file(path, dry_run=args.dry_run)
+            for question in iter_questions_from_file(source):
+                total_questions += 1
+                if not isinstance(question, dict):
+                    skipped_entries += 1
+                    continue
+
+                changed, operations = migrate_question(question)
+                if changed:
+                    changed_questions += 1
+                    operation_counts.update(operations)
+
+                writer.add(question)
         except ValueError as exc:  # pragma: no cover - runtime guard
             print(exc, file=sys.stderr)
             return 2
-        total_questions += count
-        total_updates += updated
-        if notes:
-            for note in notes:
-                print(note)
 
-    action = "would update" if args.dry_run else "updated"
+    emitted_paths = writer.finalize()
+
+    if not total_questions:
+        print(f"No question records found in {source_path}", file=sys.stderr)
+        return 2
+
+    action = "would write" if args.dry_run else "wrote"
+    shard_phrase = f"{len(emitted_paths)} shard(s)" if emitted_paths else "no shards"
     print(
-        f"Processed {len(files)} file(s) containing {total_questions} question(s); {action} {total_updates} question(s)."
+        f"Processed {total_questions} question(s) from {len(sources)} source file(s); "
+        f"{action} {shard_phrase} to {output_dir}."
     )
+    if skipped_entries:
+        print(f"Skipped {skipped_entries} non-dict entr{'y' if skipped_entries == 1 else 'ies'}.")
+    if changed_questions:
+        print(f"Normalised {changed_questions} question(s).")
+    if operation_counts:
+        print("Most common normalisation steps:")
+        for operation, count in operation_counts.most_common(10):
+            print(f" - {operation}: {count}")
 
     return 0
 

@@ -54,3 +54,9 @@ Based on current data and validation rules, the following fields are required fo
 - The GitHub Actions workflow defined in `.github/workflows/validate.yml` installs project dependencies plus `jsonschema`, executes `python scripts/validate_questions.py`, and blocks merges when validation fails.
 - Contributors can reproduce the checks locally with `python scripts/validate_questions.py`; the command reports the number of validated questions and highlights any failing files with detailed error listings.
 
+## Ingestion Workflow & Quality Checkpoints
+- Run `python scripts/migrate_questions.py <legacy_export> --output-dir data/questions --shard-size 250` to convert large legacy exports (JSON arrays or JSON Lines) into canonical shards.
+- Migration enforces populated `metadata` fields, derives keywords/tags when missing, and normalises explanations/rationales to the schema contract.
+- After migration, execute `python scripts/validate_questions.py --workers 8` to parallelise schema checks and surface a per-file error summary for rapid triage.
+- Confirm shard counts and error totals match expectations before committing regenerated files.
+

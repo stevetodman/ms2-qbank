@@ -175,6 +175,15 @@ def parse_args() -> argparse.Namespace:
         default=Path("data/schema/question.schema.json"),
         help="Path to the JSON schema describing a question record.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help=(
+            "Number of worker threads to use for validation. "
+            "Defaults to the Python ThreadPoolExecutor heuristic."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -197,7 +206,8 @@ def main() -> int:
         return 2
 
     results: List[Tuple[Path, int, List[str]]] = []
-    with ThreadPoolExecutor() as executor:
+    worker_count = args.workers if args.workers and args.workers > 0 else None
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
         futures = {executor.submit(validate_file, path, validator): path for path in json_files}
         for future in as_completed(futures):
             path = futures[future]
@@ -211,6 +221,11 @@ def main() -> int:
     for path, _, errors in results:
         if errors:
             error_map[path].extend(errors)
+
+    print("Per-file summary:")
+    for path, count, errors in sorted(results):
+        status = "ok" if not errors else f"{len(errors)} error(s)"
+        print(f" - {path}: {count} question(s), {status}")
 
     if error_map:
         total_errors = sum(len(errors) for errors in error_map.values())
