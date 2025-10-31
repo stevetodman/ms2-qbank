@@ -19,6 +19,11 @@ markdown artifacts in `data/analytics/`, and refreshes the canonical
 `docs/analysis/question-metrics.*` documentation (unless `--skip-docs` is
 provided).
 
+The review workflow automatically schedules a regeneration whenever a
+question's status transitions between states. Background scheduling debounces
+rapid transitions, ensuring the `data/analytics/` artifacts stay current without
+manual intervention.
+
 Artifacts follow the `YYYYMMDDTHHMMSSZ` naming convention. The JSON payload
 contains the metrics and the UTC timestamp of generation, while the markdown
 file renders the dashboard for quick inspection.
@@ -37,6 +42,7 @@ The response includes:
 - `generated_at`: ISO-8601 timestamp of the snapshot (UTC)
 - `metrics`: Aggregated counts across difficulty, review status, and usage
 - `artifact`: Relative paths to the underlying JSON and markdown files
+- `is_fresh`: `true` when the snapshot is less than ten minutes old
 
 If no analytics have been generated yet, the endpoint responds with `404`.
 

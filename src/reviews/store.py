@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Callable, Iterable, Optional
+from typing import Awaitable, Callable, Iterable, Optional
 
 from sqlalchemy import Column, DateTime
 from sqlmodel import Field, Session, SQLModel, select
@@ -50,7 +52,7 @@ class ReviewEventRow(SQLModel, table=True):
         )
 
 
-StatusHook = Callable[[str, str, str], None]
+StatusHook = Callable[[str, str, str], Optional[Awaitable[None]]]
 
 
 @dataclass
@@ -58,8 +60,19 @@ class _AnalyticsDispatcher:
     hook: Optional[StatusHook] = None
 
     def emit(self, question_id: str, previous_status: str, new_status: str) -> None:
-        if self.hook and previous_status != new_status:
-            self.hook(question_id, previous_status, new_status)
+        if not self.hook or previous_status == new_status:
+            return
+
+        result = self.hook(question_id, previous_status, new_status)
+        if inspect.isawaitable(result):
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            if loop and loop.is_running():
+                loop.create_task(result)  # type: ignore[arg-type]
+            else:
+                asyncio.run(result)
 
 
 class ReviewStore:
@@ -115,3 +128,8 @@ class ReviewStore:
 
         self._analytics.emit(question_id, previous_status, new_status)
         return record
+
+    def set_analytics_hook(self, hook: Optional[StatusHook]) -> None:
+        """Update the analytics hook used for status transitions."""
+
+        self._analytics.hook = hook

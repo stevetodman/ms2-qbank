@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -16,6 +17,7 @@ from .index import QuestionIndex
 # repository's ``data/questions`` folder.
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "questions"
 ANALYTICS_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "analytics"
+_FRESHNESS_WINDOW = timedelta(minutes=10)
 
 
 def _load_question_payloads(directory: Path) -> List[Dict[str, Any]]:
@@ -117,6 +119,9 @@ class AnalyticsResponse(BaseModel):
     generated_at: str = Field(..., description="ISO-8601 timestamp for the analytics snapshot")
     metrics: AnalyticsMetrics
     artifact: AnalyticsArtifact
+    is_fresh: bool = Field(
+        ..., description="True when the latest analytics were generated within the freshness window"
+    )
 
 
 def _initialise_index() -> QuestionIndex:
@@ -140,6 +145,15 @@ def _get_index() -> QuestionIndex:
 
 
 _TIMESTAMP_PATTERN = re.compile(r"^\d{8}T\d{6}Z\.json$")
+
+
+def _parse_generated_at(timestamp: str) -> Optional[datetime]:
+    try:
+        formatted = timestamp.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(formatted)
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def _load_latest_analytics() -> Dict[str, Any]:
@@ -209,10 +223,17 @@ def _load_latest_analytics() -> Dict[str, Any]:
         "markdown_path": latest.with_suffix(".md").name,
     }
 
+    freshness_reference = _parse_generated_at(generated_at)
+    is_fresh = False
+    if freshness_reference is not None:
+        now = datetime.now(timezone.utc)
+        is_fresh = now - freshness_reference <= _FRESHNESS_WINDOW
+
     return {
         "generated_at": generated_at,
         "metrics": metrics_payload,
         "artifact": artifact,
+        "is_fresh": is_fresh,
     }
 
 
