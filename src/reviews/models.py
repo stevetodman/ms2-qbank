@@ -7,6 +7,19 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Iterable, List, Optional
 
+
+class InvalidTransitionError(ValueError):
+    """Raised when an invalid review status transition is requested."""
+
+
+class ReviewerRole(str, Enum):
+    """Supported reviewer roles for workflow decisions."""
+
+    AUTHOR = "author"
+    REVIEWER = "reviewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
@@ -24,6 +37,7 @@ class ReviewEvent:
 
     reviewer: str
     action: ReviewAction
+    role: ReviewerRole
     comment: Optional[str] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -31,6 +45,7 @@ class ReviewEvent:
         payload = {
             "reviewer": self.reviewer,
             "action": self.action.value,
+            "role": self.role.value,
             "timestamp": self.timestamp.strftime(ISO_FORMAT),
         }
         if self.comment is not None:
@@ -44,7 +59,9 @@ class ReviewEvent:
         comment = payload.get("comment")
         action = ReviewAction(payload["action"])
         reviewer = payload["reviewer"]
-        return cls(reviewer=reviewer, action=action, comment=comment, timestamp=timestamp)
+        role_raw = payload.get("role", ReviewerRole.REVIEWER.value)
+        role = ReviewerRole(role_raw)
+        return cls(reviewer=reviewer, action=action, role=role, comment=comment, timestamp=timestamp)
 
 
 @dataclass
@@ -54,14 +71,51 @@ class ReviewRecord:
     question_id: str
     events: List[ReviewEvent] = field(default_factory=list)
 
+    _STATUS_PENDING = "pending"
+    _STATUS_APPROVED = "approved"
+    _STATUS_REJECTED = "rejected"
+
+    _TRANSITIONS = {
+        _STATUS_PENDING: {
+            ReviewAction.COMMENT: _STATUS_PENDING,
+            ReviewAction.APPROVE: _STATUS_APPROVED,
+            ReviewAction.REJECT: _STATUS_REJECTED,
+        },
+        _STATUS_APPROVED: {
+            ReviewAction.COMMENT: _STATUS_APPROVED,
+        },
+        _STATUS_REJECTED: {
+            ReviewAction.COMMENT: _STATUS_REJECTED,
+        },
+    }
+
     def current_status(self) -> str:
-        status = "pending"
+        status = self._STATUS_PENDING
         for event in self.events:
             if event.action is ReviewAction.APPROVE:
-                status = "approved"
+                status = self._STATUS_APPROVED
             elif event.action is ReviewAction.REJECT:
-                status = "rejected"
+                status = self._STATUS_REJECTED
         return status
+
+    def apply_event(self, event: ReviewEvent) -> str:
+        """Apply *event* to the record enforcing status transitions.
+
+        Returns the resulting status after applying the event.
+        """
+
+        current_status = self.current_status()
+        next_status = self._next_status(current_status, event.action)
+        self.events.append(event)
+        return next_status
+
+    def _next_status(self, current_status: str, action: ReviewAction) -> str:
+        transitions = self._TRANSITIONS.get(current_status, {})
+        if action not in transitions:
+            raise InvalidTransitionError(
+                f"Cannot apply action '{action.value}' when review is {current_status}."
+            )
+        return transitions[action]
 
     def to_dict(self) -> Dict[str, Iterable[Dict[str, str]]]:
         return {
