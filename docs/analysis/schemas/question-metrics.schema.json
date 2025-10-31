@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Question Metrics",
+  "type": "object",
+  "required": [
+    "total_questions",
+    "difficulty_distribution",
+    "review_status_distribution",
+    "usage_summary"
+  ],
+  "properties": {
+    "total_questions": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of questions discovered in the dataset."
+    },
+    "difficulty_distribution": {
+      "type": "object",
+      "description": "Counts of questions per difficulty bucket.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "review_status_distribution": {
+      "type": "object",
+      "description": "Counts of questions per review status label.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "usage_summary": {
+      "type": "object",
+      "required": [
+        "tracked_questions",
+        "total_usage",
+        "average_usage",
+        "minimum_usage",
+        "maximum_usage",
+        "usage_distribution"
+      ],
+      "properties": {
+        "tracked_questions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_usage": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "average_usage": {
+          "type": "number",
+          "minimum": 0
+        },
+        "minimum_usage": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maximum_usage": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "usage_distribution": {
+          "type": "object",
+          "description": "Histogram of question counts keyed by delivery count.",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

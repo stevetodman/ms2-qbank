@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -14,6 +15,7 @@ from .index import QuestionIndex
 # Directory containing question JSON payloads. The default points to the
 # repository's ``data/questions`` folder.
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "questions"
+ANALYTICS_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "analytics"
 
 
 def _load_question_payloads(directory: Path) -> List[Dict[str, Any]]:
@@ -75,6 +77,48 @@ class SearchResponse(BaseModel):
     pagination: Pagination
 
 
+class UsageDistributionBucket(BaseModel):
+    """Histogram bucket describing usage distribution."""
+
+    deliveries: int = Field(..., ge=0, description="Number of deliveries represented by the bucket")
+    questions: int = Field(..., ge=0, description="Number of questions that fall into the bucket")
+
+
+class AnalyticsUsageSummary(BaseModel):
+    """Usage summary included in analytics responses."""
+
+    tracked_questions: int = Field(..., ge=0)
+    total_usage: int = Field(..., ge=0)
+    average_usage: float = Field(..., ge=0)
+    minimum_usage: int = Field(..., ge=0)
+    maximum_usage: int = Field(..., ge=0)
+    usage_distribution: List[UsageDistributionBucket]
+
+
+class AnalyticsMetrics(BaseModel):
+    """Top-level analytics payload returned to clients."""
+
+    total_questions: int = Field(..., ge=0)
+    difficulty_distribution: Dict[str, int]
+    review_status_distribution: Dict[str, int]
+    usage_summary: AnalyticsUsageSummary
+
+
+class AnalyticsArtifact(BaseModel):
+    """Relative paths to generated analytics artifacts."""
+
+    json_path: str = Field(..., description="Relative path to the JSON artifact in data/analytics")
+    markdown_path: str = Field(..., description="Relative path to the markdown artifact in data/analytics")
+
+
+class AnalyticsResponse(BaseModel):
+    """Response describing the most recent analytics report."""
+
+    generated_at: str = Field(..., description="ISO-8601 timestamp for the analytics snapshot")
+    metrics: AnalyticsMetrics
+    artifact: AnalyticsArtifact
+
+
 def _initialise_index() -> QuestionIndex:
     questions = _load_question_payloads(DATA_DIRECTORY)
     return QuestionIndex(questions)
@@ -93,6 +137,83 @@ def _get_index() -> QuestionIndex:
     if index is None:
         raise HTTPException(status_code=500, detail="Search index is not initialised")
     return index
+
+
+_TIMESTAMP_PATTERN = re.compile(r"^\d{8}T\d{6}Z\.json$")
+
+
+def _load_latest_analytics() -> Dict[str, Any]:
+    if not ANALYTICS_DIRECTORY.exists():
+        raise HTTPException(status_code=404, detail="No analytics have been generated")
+
+    candidates = sorted(
+        path for path in ANALYTICS_DIRECTORY.glob("*.json") if _TIMESTAMP_PATTERN.match(path.name)
+    )
+    if not candidates:
+        raise HTTPException(status_code=404, detail="No analytics have been generated")
+
+    latest = candidates[-1]
+    try:
+        payload = json.loads(latest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:  # pragma: no cover - unexpected data corruption
+        raise HTTPException(status_code=500, detail="Failed to parse analytics artifact") from exc
+
+    metrics = payload.get("metrics")
+    generated_at = payload.get("generated_at")
+    if not isinstance(metrics, dict) or not isinstance(generated_at, str):
+        raise HTTPException(status_code=500, detail="Latest analytics artifact is invalid")
+
+    usage_summary = metrics.get("usage_summary")
+    if not isinstance(usage_summary, dict):
+        raise HTTPException(status_code=500, detail="Latest analytics artifact is invalid")
+
+    distribution = usage_summary.get("usage_distribution", {})
+    buckets: List[Dict[str, int]] = []
+    if isinstance(distribution, dict):
+        for key, value in distribution.items():
+            try:
+                deliveries = int(key)
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(value, int):
+                continue
+            buckets.append({"deliveries": deliveries, "questions": value})
+    elif isinstance(distribution, list):
+        for entry in distribution:
+            if not isinstance(entry, dict):
+                continue
+            deliveries = entry.get("deliveries")
+            questions = entry.get("questions")
+            if isinstance(deliveries, int) and isinstance(questions, int):
+                buckets.append({"deliveries": deliveries, "questions": questions})
+    buckets.sort(key=lambda item: item["deliveries"])
+
+    usage_summary = {
+        "tracked_questions": usage_summary.get("tracked_questions", 0),
+        "total_usage": usage_summary.get("total_usage", 0),
+        "average_usage": usage_summary.get("average_usage", 0.0),
+        "minimum_usage": usage_summary.get("minimum_usage", 0),
+        "maximum_usage": usage_summary.get("maximum_usage", 0),
+        "usage_distribution": buckets,
+    }
+
+    metrics_payload = {
+        "total_questions": metrics.get("total_questions", 0),
+        "difficulty_distribution": metrics.get("difficulty_distribution", {}),
+        "review_status_distribution": metrics.get("review_status_distribution", {}),
+        "usage_summary": usage_summary,
+    }
+
+    artifact = {
+        "json_path": latest.name,
+        "markdown_path": latest.with_suffix(".md").name,
+    }
+
+    return {
+        "generated_at": generated_at,
+        "metrics": metrics_payload,
+        "artifact": artifact,
+    }
 
 
 @app.post("/search", response_model=SearchResponse)
@@ -125,4 +246,20 @@ async def search(request: SearchRequest) -> SearchResponse:
     return SearchResponse(data=window, pagination=pagination)
 
 
-__all__ = ["app", "SearchRequest", "SearchResponse", "Pagination", "DATA_DIRECTORY"]
+@app.get("/analytics/latest", response_model=AnalyticsResponse)
+async def latest_analytics() -> AnalyticsResponse:
+    """Return the most recently generated analytics snapshot."""
+
+    payload = _load_latest_analytics()
+    return AnalyticsResponse(**payload)
+
+
+__all__ = [
+    "app",
+    "SearchRequest",
+    "SearchResponse",
+    "Pagination",
+    "DATA_DIRECTORY",
+    "ANALYTICS_DIRECTORY",
+    "AnalyticsResponse",
+]
