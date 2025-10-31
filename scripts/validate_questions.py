@@ -1,298 +1,161 @@
-"""Validate question data files for schema compliance and metadata coverage."""
+"""Validate question data files against the MS2 QBank schema."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Sequence
 
-ID_PATTERN = re.compile(r"^q_[0-9a-f]{8}$")
-CHOICE_LABEL_PATTERN = re.compile(r"^[A-Z]$")
-
-SUBJECTS = {
-    "Anatomy",
-    "Behavioral Science",
-    "Biochemistry",
-    "Biostatistics",
-    "Immunology",
-    "Microbiology",
-    "Pathology",
-    "Pharmacology",
-    "Physiology",
-}
-
-SYSTEMS = {
-    "Cardiovascular",
-    "Endocrine",
-    "Gastrointestinal",
-    "Hematologic/Lymphatic",
-    "Musculoskeletal",
-    "Nervous",
-    "Renal",
-    "Reproductive",
-    "Respiratory",
-    "Skin/Connective Tissue",
-    "Multisystem",
-}
-
-DIFFICULTIES = {"Easy", "Medium", "Hard"}
-STATUSES = {"Unused", "Marked", "Incorrect", "Correct", "Omitted"}
-MEDIA_TYPES = {"image", "audio", "video"}
+try:  # pragma: no cover - optional dependency guard
+    from jsonschema import Draft202012Validator, FormatChecker
+    from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
+except ImportError:  # pragma: no cover - handled at runtime
+    Draft202012Validator = None  # type: ignore[assignment]
+    FormatChecker = None  # type: ignore[assignment]
+    JSONSchemaValidationError = None  # type: ignore[assignment]
 
 
-class ValidationError(Exception):
-    """Raised when validation fails for a question file."""
+def load_json(path: Path) -> object:
+    """Load JSON from *path* and return the resulting object."""
 
-
-def load_questions(path: Path) -> List[dict]:
     try:
         with path.open("r", encoding="utf-8") as handle:
-            data = json.load(handle)
+            return json.load(handle)
     except json.JSONDecodeError as exc:  # pragma: no cover - runtime guard
-        raise ValidationError(f"{path}: invalid JSON - {exc}") from exc
-
-    if not isinstance(data, list):
-        raise ValidationError(f"{path}: expected an array of question objects")
-    return data
+        raise ValueError(f"{path}: invalid JSON - {exc.msg} (line {exc.lineno} column {exc.colno})") from exc
 
 
-def validate_question(question: dict, index: int, source: Path) -> List[str]:
+def create_validator(schema_path: Path) -> "Draft202012Validator":
+    """Create a JSON Schema validator for the question schema."""
+
+    if Draft202012Validator is None or FormatChecker is None:
+        print(
+            "Error: The 'jsonschema' package is required. Install it with `pip install jsonschema`.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    schema_data = load_json(schema_path)
+    if not isinstance(schema_data, dict):
+        raise SystemExit(f"Error: {schema_path} does not contain a JSON object")
+
+    try:
+        return Draft202012Validator(schema_data, format_checker=FormatChecker())
+    except JSONSchemaValidationError as exc:  # pragma: no cover - schema authoring guard
+        raise SystemExit(f"Error: invalid schema in {schema_path}: {exc.message}") from exc
+
+
+def iter_question_files(path: Path) -> Iterable[Path]:
+    """Yield JSON files under *path*."""
+
+    if path.is_file():
+        yield path
+    else:
+        for json_file in sorted(path.rglob("*.json")):
+            if json_file.is_file():
+                yield json_file
+
+
+def build_location(source: Path, index: int, path: Sequence[object]) -> str:
+    """Format a human readable location from a JSON schema error path."""
+
+    location = f"{source}[{index}]"
+    for element in path:
+        if isinstance(element, int):
+            location += f"[{element}]"
+        else:
+            location += f".{element}"
+    return location
+
+
+def _schema_error_sort_key(error: "JSONSchemaValidationError") -> Sequence[str]:
+    key: List[str] = []
+    for element in error.absolute_path:
+        if isinstance(element, int):
+            key.append(f"i:{element:08d}")
+        else:
+            key.append(f"s:{element}")
+    key.append(error.message)
+    return key
+
+
+def additional_checks(question: dict, source: Path, index: int) -> List[str]:
+    """Perform semantic validations that extend the JSON schema."""
+
     errors: List[str] = []
 
-    def require(field: str) -> None:
-        if field not in question:
-            errors.append(f"{source}[{index}]: missing required field '{field}'")
-
-    require("id")
-    require("stem")
-    require("choices")
-    require("answer")
-    require("explanation")
-    require("metadata")
-
-    qid = question.get("id")
-    if not isinstance(qid, str) or not ID_PATTERN.match(qid or ""):
-        errors.append(f"{source}[{index}]: 'id' must match pattern ^q_[0-9a-f]{{8}}$")
-
-    stem = question.get("stem")
-    if not isinstance(stem, str) or not stem.strip():
-        errors.append(f"{source}[{index}]: 'stem' must be a non-empty string")
-
     choices = question.get("choices")
-    if not isinstance(choices, list) or len(choices) < 2:
-        errors.append(f"{source}[{index}]: 'choices' must be an array with at least two options")
-    else:
-        labels_seen = set()
+    choice_labels = []
+    if isinstance(choices, list):
+        seen_labels = set()
         for c_index, choice in enumerate(choices):
             if not isinstance(choice, dict):
-                errors.append(f"{source}[{index}].choices[{c_index}]: must be an object")
                 continue
             label = choice.get("label")
-            text = choice.get("text")
-            if not isinstance(label, str) or not CHOICE_LABEL_PATTERN.match(label or ""):
-                errors.append(
-                    f"{source}[{index}].choices[{c_index}]: 'label' must be a single capital letter"
-                )
-            elif label in labels_seen:
-                errors.append(
-                    f"{source}[{index}].choices[{c_index}]: duplicate label '{label}'"
-                )
-            else:
-                labels_seen.add(label)
-            if not isinstance(text, str) or not text.strip():
-                errors.append(
-                    f"{source}[{index}].choices[{c_index}]: 'text' must be a non-empty string"
-                )
+            if isinstance(label, str):
+                if label in seen_labels:
+                    errors.append(
+                        f"{source}[{index}].choices[{c_index}]: duplicate label '{label}'"
+                    )
+                else:
+                    seen_labels.add(label)
+                    choice_labels.append(label)
+        choice_labels = sorted(seen_labels)
 
     answer = question.get("answer")
-    if not isinstance(answer, str) or not CHOICE_LABEL_PATTERN.match(answer or ""):
-        errors.append(f"{source}[{index}]: 'answer' must be a capital letter")
-    elif choices and isinstance(choices, list):
-        choice_labels = {choice.get("label") for choice in choices if isinstance(choice, dict)}
+    if isinstance(answer, str) and choice_labels:
         if answer not in choice_labels:
             errors.append(
-                f"{source}[{index}]: 'answer' '{answer}' must correspond to one of the provided choices"
+                f"{source}[{index}]: answer '{answer}' must match one of the available choice labels"
             )
 
     explanation = question.get("explanation")
-    if not isinstance(explanation, dict):
-        errors.append(f"{source}[{index}]: 'explanation' must be an object")
-    else:
-        summary = explanation.get("summary")
-        if not isinstance(summary, str) or not summary.strip():
-            errors.append(f"{source}[{index}]: explanation.summary must be a non-empty string")
+    if isinstance(explanation, dict):
         rationales = explanation.get("rationales")
-        if rationales is None:
-            errors.append(
-                f"{source}[{index}]: explanation.rationales must be provided for each choice"
-            )
-        elif not isinstance(rationales, list) or not rationales:
-            errors.append(
-                f"{source}[{index}]: explanation.rationales must be a non-empty array"
-            )
-        else:
-            rationale_labels = set()
+        if isinstance(rationales, list) and choice_labels:
             for r_index, rationale in enumerate(rationales):
                 if not isinstance(rationale, dict):
-                    errors.append(
-                        f"{source}[{index}]: explanation.rationales[{r_index}] must be an object"
-                    )
                     continue
-                r_choice = rationale.get("choice")
-                r_text = rationale.get("text")
-                if not isinstance(r_choice, str) or not CHOICE_LABEL_PATTERN.match(r_choice or ""):
+                choice_label = rationale.get("choice")
+                if isinstance(choice_label, str) and choice_label not in choice_labels:
                     errors.append(
-                        f"{source}[{index}]: explanation.rationales[{r_index}].choice must be a capital letter"
-                    )
-                else:
-                    if r_choice in rationale_labels:
-                        errors.append(
-                            f"{source}[{index}]: explanation.rationales[{r_index}].choice duplicates '{r_choice}'"
-                        )
-                    rationale_labels.add(r_choice)
-                if not isinstance(r_text, str) or not r_text.strip():
-                    errors.append(
-                        f"{source}[{index}]: explanation.rationales[{r_index}].text must be a non-empty string"
-                    )
-
-            if choices and isinstance(choices, list):
-                choice_labels = {
-                    choice.get("label") for choice in choices if isinstance(choice, dict)
-                }
-                missing_rationales = sorted(choice_labels - rationale_labels)
-                extra_rationales = sorted(rationale_labels - choice_labels)
-                if missing_rationales:
-                    errors.append(
-                        f"{source}[{index}]: explanation.rationales missing entries for choices {missing_rationales}"
-                    )
-                if extra_rationales:
-                    errors.append(
-                        f"{source}[{index}]: explanation.rationales include unknown choices {extra_rationales}"
-                    )
-
-    metadata = question.get("metadata")
-    if not isinstance(metadata, dict):
-        errors.append(f"{source}[{index}]: 'metadata' must be an object")
-    else:
-        for field in ("subject", "system", "difficulty", "status", "keywords"):
-            if field not in metadata:
-                errors.append(f"{source}[{index}]: metadata missing required field '{field}'")
-
-        subject = metadata.get("subject")
-        if subject not in SUBJECTS:
-            errors.append(
-                f"{source}[{index}]: metadata.subject must be one of {sorted(SUBJECTS)}"
-            )
-
-        system = metadata.get("system")
-        if system not in SYSTEMS:
-            errors.append(
-                f"{source}[{index}]: metadata.system must be one of {sorted(SYSTEMS)}"
-            )
-
-        difficulty = metadata.get("difficulty")
-        if difficulty not in DIFFICULTIES:
-            errors.append(
-                f"{source}[{index}]: metadata.difficulty must be one of {sorted(DIFFICULTIES)}"
-            )
-
-        status = metadata.get("status")
-        if status not in STATUSES:
-            errors.append(
-                f"{source}[{index}]: metadata.status must be one of {sorted(STATUSES)}"
-            )
-
-        keywords = metadata.get("keywords")
-        if not isinstance(keywords, list) or not keywords:
-            errors.append(
-                f"{source}[{index}]: metadata.keywords must be a non-empty array of strings"
-            )
-        else:
-            for kw_index, keyword in enumerate(keywords):
-                if not isinstance(keyword, str) or not keyword.strip():
-                    errors.append(
-                        f"{source}[{index}]: metadata.keywords[{kw_index}] must be a non-empty string"
-                    )
-
-        media = metadata.get("media")
-        if media is not None:
-            if not isinstance(media, list):
-                errors.append(f"{source}[{index}]: metadata.media must be an array when provided")
-            else:
-                for m_index, item in enumerate(media):
-                    if not isinstance(item, dict):
-                        errors.append(
-                            f"{source}[{index}]: metadata.media[{m_index}] must be an object"
-                        )
-                        continue
-                    media_type = item.get("type")
-                    uri = item.get("uri")
-                    alt_text = item.get("alt_text")
-                    if media_type not in MEDIA_TYPES:
-                        errors.append(
-                            f"{source}[{index}]: metadata.media[{m_index}].type must be one of {sorted(MEDIA_TYPES)}"
-                        )
-                    if not isinstance(uri, str) or not uri.strip():
-                        errors.append(
-                            f"{source}[{index}]: metadata.media[{m_index}].uri must be a non-empty string"
-                        )
-                    if not isinstance(alt_text, str) or not alt_text.strip():
-                        errors.append(
-                            f"{source}[{index}]: metadata.media[{m_index}].alt_text must be a non-empty string"
-                        )
-
-        references = metadata.get("references")
-        if references is not None:
-            if not isinstance(references, list):
-                errors.append(
-                    f"{source}[{index}]: metadata.references must be an array when provided"
-                )
-            else:
-                for r_index, ref in enumerate(references):
-                    if not isinstance(ref, dict):
-                        errors.append(
-                            f"{source}[{index}]: metadata.references[{r_index}] must be an object"
-                        )
-                        continue
-                    for field in ("title", "source", "url"):
-                        if field not in ref or not isinstance(ref[field], str) or not ref[field].strip():
-                            errors.append(
-                                f"{source}[{index}]: metadata.references[{r_index}].{field} must be a non-empty string"
-                            )
-
-    tags = question.get("tags")
-    if tags is not None:
-        if not isinstance(tags, list):
-            errors.append(f"{source}[{index}]: 'tags' must be an array when provided")
-        else:
-            for t_index, tag in enumerate(tags):
-                if not isinstance(tag, str) or not tag.strip():
-                    errors.append(
-                        f"{source}[{index}]: tags[{t_index}] must be a non-empty string"
+                        f"{source}[{index}].explanation.rationales[{r_index}].choice "
+                        f"references unknown label '{choice_label}'"
                     )
 
     return errors
 
 
-def validate_file(path: Path) -> Tuple[int, List[str]]:
-    questions = load_questions(path)
+def validate_file(path: Path, validator: "Draft202012Validator") -> tuple[int, List[str]]:
+    """Validate a single question data file."""
+
+    try:
+        data = load_json(path)
+    except ValueError as exc:
+        return 0, [str(exc)]
+
+    if not isinstance(data, list):
+        return 0, [f"{path}: expected a list of question objects"]
+
+    if not data:
+        return 0, [f"{path}: expected at least one question"]
+
     errors: List[str] = []
-    for index, question in enumerate(questions):
+    for index, question in enumerate(data):
         if not isinstance(question, dict):
             errors.append(f"{path}[{index}]: each entry must be an object")
             continue
-        errors.extend(validate_question(question, index, path))
-    return len(questions), errors
 
+        schema_errors = sorted(validator.iter_errors(question), key=_schema_error_sort_key)
+        for error in schema_errors:
+            location = build_location(path, index, list(error.absolute_path))
+            errors.append(f"{location}: {error.message}")
 
-def iter_question_files(data_path: Path) -> Iterable[Path]:
-    if data_path.is_file():
-        yield data_path
-    else:
-        yield from sorted(data_path.glob("*.json"))
+        errors.extend(additional_checks(question, path, index))
+
+    return len(data), errors
 
 
 def parse_args() -> argparse.Namespace:
@@ -300,20 +163,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "data_path",
         type=Path,
-        default=Path("data/questions"),
         nargs="?",
+        default=Path("data/questions"),
         help="Path to a question JSON file or directory containing JSON files.",
+    )
+    parser.add_argument(
+        "--schema",
+        type=Path,
+        default=Path("data/schema/question.schema.json"),
+        help="Path to the JSON schema describing a question record.",
     )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+
     data_path: Path = args.data_path
+    schema_path: Path = args.schema
 
     if not data_path.exists():
         print(f"Error: {data_path} does not exist", file=sys.stderr)
         return 2
+
+    validator = create_validator(schema_path)
 
     total_questions = 0
     all_errors: List[str] = []
@@ -321,7 +194,7 @@ def main() -> int:
     for path in iter_question_files(data_path):
         if path.suffix.lower() != ".json":
             continue
-        count, errors = validate_file(path)
+        count, errors = validate_file(path, validator)
         total_questions += count
         all_errors.extend(errors)
 
