@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from .auth import AuthenticationMiddleware, get_current_user
+from .auth import AuthenticationMiddleware, AuthenticatedUser, bearer_jwt_resolver, get_current_user
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
 
@@ -46,7 +47,11 @@ def _get_default_store() -> ReviewStore:
     return ReviewStore(DEFAULT_STORE_PATH)
 
 
-def _validate_role_for_action(action: ReviewAction, role: ReviewerRole) -> None:
+def _validate_role_for_action(
+    action: ReviewAction,
+    role: ReviewerRole,
+    user: AuthenticatedUser,
+) -> None:
     allowed_roles = {
         ReviewAction.COMMENT: {
             ReviewerRole.AUTHOR,
@@ -59,11 +64,17 @@ def _validate_role_for_action(action: ReviewAction, role: ReviewerRole) -> None:
     }
     if role not in allowed_roles[action]:
         raise HTTPException(status_code=403, detail=f"Role '{role.value}' cannot perform '{action.value}'")
+    if role.value not in user.roles:
+        raise HTTPException(status_code=403, detail="Authenticated user lacks required role")
 
 
-def create_app(store: Optional[ReviewStore] = None) -> FastAPI:
+def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str] = None) -> FastAPI:
+    secret = jwt_secret or os.getenv("REVIEWS_JWT_SECRET")
+    if not secret:
+        raise RuntimeError("JWT secret must be configured for the review API")
+
     app = FastAPI(title="MS2 QBank Review API")
-    app.add_middleware(AuthenticationMiddleware)
+    app.add_middleware(AuthenticationMiddleware, resolver=bearer_jwt_resolver(secret))
 
     def get_store() -> ReviewStore:
         return store or _get_default_store()
@@ -96,9 +107,9 @@ def create_app(store: Optional[ReviewStore] = None) -> FastAPI:
         question_id: str,
         payload: ReviewRequest,
         review_store: ReviewStore = Depends(get_store),
-        _user=Depends(get_current_user),
+        user: AuthenticatedUser = Depends(get_current_user),
     ) -> ReviewSummaryResponse:
-        _validate_role_for_action(payload.action, payload.role)
+        _validate_role_for_action(payload.action, payload.role, user)
         event = ReviewEvent(
             reviewer=payload.reviewer,
             action=payload.action,

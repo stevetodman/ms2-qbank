@@ -1,17 +1,31 @@
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+os.environ.setdefault("REVIEWS_JWT_SECRET", "test-secret")
+
+import jwt
 from fastapi.testclient import TestClient
 
 from reviews import ReviewStore, create_app
 from reviews.models import ReviewAction, ReviewEvent, ReviewerRole
 
+JWT_SECRET = os.environ["REVIEWS_JWT_SECRET"]
+
+
+def _issue_token(identity: str, roles: list[str]) -> str:
+    return jwt.encode({"sub": identity, "roles": roles}, JWT_SECRET, algorithm="HS256")
+
+
+def auth_headers(identity: str, roles: list[str]) -> dict[str, str]:
+    return {"Authorization": f"Bearer {_issue_token(identity, roles)}"}
+
 
 def build_client(tmp_path: Path) -> TestClient:
     store = ReviewStore(tmp_path / "reviews.db")
-    app = create_app(store)
+    app = create_app(store, jwt_secret=JWT_SECRET)
     return TestClient(app)
 
 
@@ -19,7 +33,10 @@ def test_review_workflow_persists_history(tmp_path: Path) -> None:
     client = build_client(tmp_path)
     question_id = "q_123"
 
-    response = client.get(f"/questions/{question_id}/reviews")
+    response = client.get(
+        f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Grey", ["reviewer"]),
+    )
     assert response.status_code == 200
     payload = response.json()
     assert payload == {
@@ -30,6 +47,7 @@ def test_review_workflow_persists_history(tmp_path: Path) -> None:
 
     comment_response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Grey", ["reviewer"]),
         json={
             "reviewer": "Dr. Grey",
             "action": "comment",
@@ -45,6 +63,7 @@ def test_review_workflow_persists_history(tmp_path: Path) -> None:
 
     reject_response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Yang", ["editor"]),
         json={
             "reviewer": "Dr. Yang",
             "action": "reject",
@@ -59,6 +78,7 @@ def test_review_workflow_persists_history(tmp_path: Path) -> None:
 
     follow_up_response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Karev", ["admin"]),
         json={
             "reviewer": "Dr. Karev",
             "action": "comment",
@@ -73,7 +93,10 @@ def test_review_workflow_persists_history(tmp_path: Path) -> None:
     assert follow_up_payload["history"][2]["role"] == "admin"
 
     new_client = build_client(tmp_path)
-    persisted_response = new_client.get(f"/questions/{question_id}/reviews")
+    persisted_response = new_client.get(
+        f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Karev", ["admin"]),
+    )
     assert persisted_response.status_code == 200
     persisted_payload = persisted_response.json()
     assert persisted_payload["current_status"] == "rejected"
@@ -91,6 +114,7 @@ def test_comment_requires_text(tmp_path: Path) -> None:
 
     response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Bailey", ["reviewer"]),
         json={"reviewer": "Dr. Bailey", "action": "comment", "role": "reviewer"},
     )
     assert response.status_code == 422
@@ -102,6 +126,7 @@ def test_invalid_role_cannot_approve(tmp_path: Path) -> None:
 
     response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Bailey", ["reviewer"]),
         json={
             "reviewer": "Dr. Bailey",
             "action": "approve",
@@ -112,12 +137,32 @@ def test_invalid_role_cannot_approve(tmp_path: Path) -> None:
     assert response.status_code == 403
 
 
+def test_user_without_editor_role_cannot_approve(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+    question_id = "q_459"
+
+    response = client.post(
+        f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Stevens", ["reviewer"]),
+        json={
+            "reviewer": "Dr. Stevens",
+            "action": "approve",
+            "role": "editor",
+            "comment": "Attempting approval without permission",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Authenticated user lacks required role"
+
+
 def test_invalid_status_transition_returns_conflict(tmp_path: Path) -> None:
     client = build_client(tmp_path)
     question_id = "q_458"
 
     approve_response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Hunt", ["editor"]),
         json={
             "reviewer": "Dr. Hunt",
             "action": "approve",
@@ -129,6 +174,7 @@ def test_invalid_status_transition_returns_conflict(tmp_path: Path) -> None:
 
     reject_response = client.post(
         f"/questions/{question_id}/reviews",
+        headers=auth_headers("Dr. Robbins", ["editor"]),
         json={
             "reviewer": "Dr. Robbins",
             "action": "reject",
