@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Dict, Iterable, List, Sequence, Tuple
 
 try:  # pragma: no cover - optional dependency guard
     from jsonschema import Draft202012Validator, FormatChecker
@@ -128,7 +130,7 @@ def additional_checks(question: dict, source: Path, index: int) -> List[str]:
     return errors
 
 
-def validate_file(path: Path, validator: "Draft202012Validator") -> tuple[int, List[str]]:
+def validate_file(path: Path, validator: "Draft202012Validator") -> Tuple[int, List[str]]:
     """Validate a single question data file."""
 
     try:
@@ -188,27 +190,53 @@ def main() -> int:
 
     validator = create_validator(schema_path)
 
-    total_questions = 0
-    all_errors: List[str] = []
+    json_files = [path for path in iter_question_files(data_path) if path.suffix.lower() == ".json"]
 
-    for path in iter_question_files(data_path):
-        if path.suffix.lower() != ".json":
-            continue
-        count, errors = validate_file(path, validator)
-        total_questions += count
-        all_errors.extend(errors)
+    if not json_files:
+        print(f"Error: No JSON files found in {data_path}", file=sys.stderr)
+        return 2
+
+    results: List[Tuple[Path, int, List[str]]] = []
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(validate_file, path, validator): path for path in json_files}
+        for future in as_completed(futures):
+            path = futures[future]
+            try:
+                count, errors = future.result()
+            except Exception as exc:  # pragma: no cover - unexpected runtime failure
+                count, errors = 0, [f"{path}: unexpected error: {exc}"]
+            results.append((path, count, errors))
+
+    error_map: Dict[Path, List[str]] = defaultdict(list)
+    for path, _, errors in results:
+        if errors:
+            error_map[path].extend(errors)
+
+    if error_map:
+        total_errors = sum(len(errors) for errors in error_map.values())
+        print(
+            f"Validation failed with {total_errors} error(s) across {len(error_map)} file(s):",
+            file=sys.stderr,
+        )
+        for path in sorted(error_map):
+            print(f" - {path}: {len(error_map[path])} error(s)", file=sys.stderr)
+
+        print("\nDetailed errors:", file=sys.stderr)
+        for path in sorted(error_map):
+            for error in error_map[path]:
+                print(f" - {error}", file=sys.stderr)
+        return 1
+
+    total_questions = sum(count for _, count, _ in results)
 
     if total_questions == 0:
         print(f"Error: No question records found in {data_path}", file=sys.stderr)
         return 2
 
-    if all_errors:
-        print("Validation failed:")
-        for error in all_errors:
-            print(f" - {error}")
-        return 1
-
-    print(f"Validation passed for {total_questions} question(s) across {data_path}.")
+    print(
+        f"Validation passed for {total_questions} question(s) across {len(json_files)} file(s).",
+        file=sys.stdout,
+    )
     return 0
 
 

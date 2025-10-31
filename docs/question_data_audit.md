@@ -49,3 +49,8 @@ Based on current data and validation rules, the following fields are required fo
 2. Validation enforces a 1:1 relationship between `choices` and `explanation.rationales` entries to guarantee rationale coverage.
 3. `references` now require `url` values to improve source transparency across the dataset.
 
+## Automated Validation Workflow
+- `scripts/validate_questions.py` now lints every JSON file in `data/questions/` concurrently and surfaces a summarized error report grouped by file, enabling faster triage when the dataset grows.
+- The GitHub Actions workflow defined in `.github/workflows/validate.yml` installs project dependencies plus `jsonschema`, executes `python scripts/validate_questions.py`, and blocks merges when validation fails.
+- Contributors can reproduce the checks locally with `python scripts/validate_questions.py`; the command reports the number of validated questions and highlights any failing files with detailed error listings.
+
