@@ -125,28 +125,53 @@ def validate_question(question: dict, index: int, source: Path) -> List[str]:
         if not isinstance(summary, str) or not summary.strip():
             errors.append(f"{source}[{index}]: explanation.summary must be a non-empty string")
         rationales = explanation.get("rationales")
-        if rationales is not None:
-            if not isinstance(rationales, list):
-                errors.append(
-                    f"{source}[{index}]: explanation.rationales must be an array when provided"
-                )
-            else:
-                for r_index, rationale in enumerate(rationales):
-                    if not isinstance(rationale, dict):
+        if rationales is None:
+            errors.append(
+                f"{source}[{index}]: explanation.rationales must be provided for each choice"
+            )
+        elif not isinstance(rationales, list) or not rationales:
+            errors.append(
+                f"{source}[{index}]: explanation.rationales must be a non-empty array"
+            )
+        else:
+            rationale_labels = set()
+            for r_index, rationale in enumerate(rationales):
+                if not isinstance(rationale, dict):
+                    errors.append(
+                        f"{source}[{index}]: explanation.rationales[{r_index}] must be an object"
+                    )
+                    continue
+                r_choice = rationale.get("choice")
+                r_text = rationale.get("text")
+                if not isinstance(r_choice, str) or not CHOICE_LABEL_PATTERN.match(r_choice or ""):
+                    errors.append(
+                        f"{source}[{index}]: explanation.rationales[{r_index}].choice must be a capital letter"
+                    )
+                else:
+                    if r_choice in rationale_labels:
                         errors.append(
-                            f"{source}[{index}]: explanation.rationales[{r_index}] must be an object"
+                            f"{source}[{index}]: explanation.rationales[{r_index}].choice duplicates '{r_choice}'"
                         )
-                        continue
-                    r_choice = rationale.get("choice")
-                    r_text = rationale.get("text")
-                    if not isinstance(r_choice, str) or not CHOICE_LABEL_PATTERN.match(r_choice or ""):
-                        errors.append(
-                            f"{source}[{index}]: explanation.rationales[{r_index}].choice must be a capital letter"
-                        )
-                    if not isinstance(r_text, str) or not r_text.strip():
-                        errors.append(
-                            f"{source}[{index}]: explanation.rationales[{r_index}].text must be a non-empty string"
-                        )
+                    rationale_labels.add(r_choice)
+                if not isinstance(r_text, str) or not r_text.strip():
+                    errors.append(
+                        f"{source}[{index}]: explanation.rationales[{r_index}].text must be a non-empty string"
+                    )
+
+            if choices and isinstance(choices, list):
+                choice_labels = {
+                    choice.get("label") for choice in choices if isinstance(choice, dict)
+                }
+                missing_rationales = sorted(choice_labels - rationale_labels)
+                extra_rationales = sorted(rationale_labels - choice_labels)
+                if missing_rationales:
+                    errors.append(
+                        f"{source}[{index}]: explanation.rationales missing entries for choices {missing_rationales}"
+                    )
+                if extra_rationales:
+                    errors.append(
+                        f"{source}[{index}]: explanation.rationales include unknown choices {extra_rationales}"
+                    )
 
     metadata = question.get("metadata")
     if not isinstance(metadata, dict):
@@ -205,6 +230,7 @@ def validate_question(question: dict, index: int, source: Path) -> List[str]:
                         continue
                     media_type = item.get("type")
                     uri = item.get("uri")
+                    alt_text = item.get("alt_text")
                     if media_type not in MEDIA_TYPES:
                         errors.append(
                             f"{source}[{index}]: metadata.media[{m_index}].type must be one of {sorted(MEDIA_TYPES)}"
@@ -213,10 +239,9 @@ def validate_question(question: dict, index: int, source: Path) -> List[str]:
                         errors.append(
                             f"{source}[{index}]: metadata.media[{m_index}].uri must be a non-empty string"
                         )
-                    alt_text = item.get("alt_text")
-                    if alt_text is not None and not isinstance(alt_text, str):
+                    if not isinstance(alt_text, str) or not alt_text.strip():
                         errors.append(
-                            f"{source}[{index}]: metadata.media[{m_index}].alt_text must be a string when provided"
+                            f"{source}[{index}]: metadata.media[{m_index}].alt_text must be a non-empty string"
                         )
 
         references = metadata.get("references")
@@ -232,16 +257,11 @@ def validate_question(question: dict, index: int, source: Path) -> List[str]:
                             f"{source}[{index}]: metadata.references[{r_index}] must be an object"
                         )
                         continue
-                    for field in ("title", "source"):
+                    for field in ("title", "source", "url"):
                         if field not in ref or not isinstance(ref[field], str) or not ref[field].strip():
                             errors.append(
                                 f"{source}[{index}]: metadata.references[{r_index}].{field} must be a non-empty string"
                             )
-                    url = ref.get("url")
-                    if url is not None and (not isinstance(url, str) or not url.strip()):
-                        errors.append(
-                            f"{source}[{index}]: metadata.references[{r_index}].url must be a non-empty string when provided"
-                        )
 
     tags = question.get("tags")
     if tags is not None:
