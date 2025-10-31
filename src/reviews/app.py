@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
+from analytics.scheduler import AnalyticsRefreshScheduler
 from .auth import AuthenticationMiddleware, AuthenticatedUser, bearer_jwt_resolver, get_current_user
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
@@ -76,8 +77,22 @@ def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str]
     app = FastAPI(title="MS2 QBank Review API")
     app.add_middleware(AuthenticationMiddleware, resolver=bearer_jwt_resolver(secret))
 
+    store_instance = store or _get_default_store()
+    scheduler = AnalyticsRefreshScheduler()
+    app.state.review_store = store_instance
+    app.state.analytics_scheduler = scheduler
+
+    @app.on_event("startup")
+    async def _startup() -> None:
+        await scheduler.start()
+        store_instance.set_analytics_hook(scheduler.handle_status_change)
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        await scheduler.shutdown()
+
     def get_store() -> ReviewStore:
-        return store or _get_default_store()
+        return app.state.review_store
 
     @app.get("/questions/{question_id}/reviews", response_model=ReviewSummaryResponse)
     def get_review_summary(
@@ -137,6 +152,7 @@ def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str]
         )
 
     return app
-
-
-app = create_app()
+try:
+    app = create_app()
+except RuntimeError:
+    app = FastAPI(title="MS2 QBank Review API")
