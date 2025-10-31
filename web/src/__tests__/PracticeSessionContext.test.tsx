@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { PracticeSessionProvider, usePracticeSession } from '../context/PracticeSessionContext.tsx';
-import type { PracticeFilters, QuestionPayload } from '../types/practice.ts';
+import { LAST_SUMMARY_STORAGE_KEY, type PracticeFilters, type QuestionPayload } from '../types/practice.ts';
 
 describe('PracticeSessionContext', () => {
   const sampleQuestion: QuestionPayload = {
@@ -41,6 +41,7 @@ describe('PracticeSessionContext', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    window.localStorage.clear();
     const fetchMock = jest.fn();
     (global.fetch as unknown) = fetchMock;
     fetchMock.mockImplementation(() =>
@@ -58,6 +59,7 @@ describe('PracticeSessionContext', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.resetAllMocks();
+    window.localStorage.clear();
   });
 
   it('loads filter metadata on mount', async () => {
@@ -93,5 +95,48 @@ describe('PracticeSessionContext', () => {
 
     expect(result.current.session?.answers['q1']).toBe('A');
     expect(result.current.session?.reveals['q1']).toBe(true);
+  });
+
+  it('computes summary data when completing a session', async () => {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <PracticeSessionProvider>{children}</PracticeSessionProvider>
+    );
+
+    const { result } = renderHook(() => usePracticeSession(), { wrapper });
+
+    await waitFor(() => expect(result.current.filterOptions.tags).toContain('demo'));
+
+    act(() => {
+      jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    });
+
+    await act(async () => {
+      await result.current.startSession('timed', baseFilters);
+    });
+
+    expect(result.current.session?.questions).toHaveLength(1);
+
+    act(() => {
+      result.current.selectAnswer('q1', 'A');
+    });
+
+    act(() => {
+      jest.setSystemTime(new Date('2024-01-01T00:00:30Z'));
+      result.current.completeSession();
+    });
+
+    const summary = result.current.session?.summary;
+    expect(summary).toBeTruthy();
+    expect(summary?.correctCount).toBe(1);
+    expect(summary?.incorrectCount).toBe(0);
+    expect(summary?.omittedCount).toBe(0);
+    expect(summary?.questionPerformances[0]?.timeSeconds).toBe(30);
+    expect(result.current.session?.reveals['q1']).toBe(true);
+    expect(result.current.session?.questionStartedAt).toBeNull();
+
+    const stored = window.localStorage.getItem(LAST_SUMMARY_STORAGE_KEY);
+    expect(stored).toBeTruthy();
+    const parsed = stored ? JSON.parse(stored) : null;
+    expect(parsed?.correctCount).toBe(1);
   });
 });

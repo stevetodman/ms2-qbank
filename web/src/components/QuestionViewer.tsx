@@ -34,7 +34,10 @@ export const QuestionViewer = ({
       <header className="stack">
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <span className="badge">Question {questionNumber} of {totalQuestions}</span>
-          <span className="badge">{modeLabel}</span>
+          <div className="toolbar" style={{ gap: '0.5rem' }}>
+            <span className="badge">{modeLabel}</span>
+            {completed && <span className="badge">Review mode</span>}
+          </div>
         </div>
         <h2>{question.stem}</h2>
         {question.metadata && (
@@ -86,6 +89,7 @@ export const QuestionViewer = ({
             Reveal explanation
           </button>
           {!canReveal && !explanationVisible && mode === 'timed' && <span>Complete the block to see explanations.</span>}
+          {completed && <span>Review mode: answers are locked and explanations are visible.</span>}
         </div>
         {explanationVisible && question.explanation && (
           <section className="card stack">

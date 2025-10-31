@@ -12,8 +12,10 @@ import type {
   PracticeFilters,
   PracticeMode,
   PracticeSession,
+  PracticeSummary,
   QuestionPayload,
 } from '../types/practice.ts';
+import { LAST_SUMMARY_STORAGE_KEY } from '../types/practice.ts';
 import { shuffle } from '../utils/shuffle.ts';
 
 interface FilterOptions {
@@ -108,6 +110,105 @@ function deriveTotalDuration(
   return null;
 }
 
+function toSeconds(milliseconds: number): number {
+  return Math.max(0, Math.round(milliseconds / 1000));
+}
+
+function accumulateCurrentQuestionDuration(session: PracticeSession, now: number) {
+  const durations = { ...session.questionDurationsMs };
+  if (session.questionStartedAt === null) {
+    return { durations, questionStartedAt: session.questionStartedAt };
+  }
+  const activeQuestion = session.questions[session.currentIndex];
+  if (!activeQuestion) {
+    return { durations, questionStartedAt: session.questionStartedAt };
+  }
+  const elapsed = Math.max(0, now - session.questionStartedAt);
+  durations[activeQuestion.id] = (durations[activeQuestion.id] ?? 0) + elapsed;
+  return { durations, questionStartedAt: now };
+}
+
+function computeSummary(
+  session: PracticeSession,
+  durations: Record<string, number>,
+  completedAt: number
+): PracticeSummary {
+  const questionPerformances = session.questions.map((question, index) => {
+    const selectedAnswer = session.answers[question.id];
+    const durationMs = durations[question.id] ?? 0;
+    return {
+      questionId: question.id,
+      questionIndex: index,
+      selectedAnswer,
+      correctAnswer: question.answer,
+      correct: selectedAnswer === question.answer,
+      timeSeconds: toSeconds(durationMs),
+    };
+  });
+
+  const totalQuestions = questionPerformances.length;
+  const correctCount = questionPerformances.filter((performance) => performance.correct).length;
+  const answeredCount = questionPerformances.filter((performance) => performance.selectedAnswer).length;
+  const incorrectCount = answeredCount - correctCount;
+  const omittedCount = totalQuestions - answeredCount;
+  const totalTimeSeconds = questionPerformances.reduce(
+    (total, performance) => total + performance.timeSeconds,
+    0
+  );
+  const averageTimeSeconds =
+    totalQuestions === 0 ? 0 : Math.round(totalTimeSeconds / totalQuestions);
+
+  return {
+    mode: session.mode,
+    filters: session.filters,
+    totalQuestions,
+    correctCount,
+    incorrectCount,
+    omittedCount,
+    averageTimeSeconds,
+    questionPerformances,
+    completedAt,
+  };
+}
+
+function persistSummary(summary: PracticeSummary) {
+  try {
+    window.localStorage?.setItem(LAST_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+  } catch (err) {
+    console.warn('Unable to persist practice summary', err);
+  }
+}
+
+function finaliseSession(session: PracticeSession, now: number): PracticeSession {
+  if (session.summary) {
+    return {
+      ...session,
+      completed: true,
+      remainingSeconds: 0,
+      questionStartedAt: null,
+    };
+  }
+
+  const { durations } = accumulateCurrentQuestionDuration(session, now);
+  const summary = computeSummary(session, durations, now);
+  persistSummary(summary);
+
+  const reveals = { ...session.reveals };
+  session.questions.forEach((question) => {
+    reveals[question.id] = true;
+  });
+
+  return {
+    ...session,
+    completed: true,
+    remainingSeconds: 0,
+    questionDurationsMs: durations,
+    questionStartedAt: null,
+    summary,
+    reveals,
+  };
+}
+
 export const PracticeSessionProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<PracticeSession | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,11 +251,12 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
         }
         const base = current.remainingSeconds ?? current.totalDurationSeconds;
         const nextValue = Math.max(base - 1, 0);
-        const completed = nextValue === 0 ? true : current.completed;
+        if (nextValue === 0) {
+          return finaliseSession(current, Date.now());
+        }
         return {
           ...current,
           remainingSeconds: nextValue,
-          completed,
         };
       });
     }, 1000);
@@ -170,6 +272,7 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
         const ordered = filters.randomizeOrder ? shuffle(questions) : questions;
         const reveals = initialiseReveals(mode, filters, ordered);
         const totalDuration = deriveTotalDuration(mode, filters, ordered.length);
+        const startedAt = Date.now();
         setSession({
           mode,
           filters,
@@ -177,10 +280,13 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
           answers: {},
           reveals,
           currentIndex: 0,
-          startedAt: Date.now(),
+          startedAt,
           totalDurationSeconds: totalDuration,
           remainingSeconds: totalDuration,
           completed: ordered.length === 0,
+          questionDurationsMs: {},
+          questionStartedAt: ordered.length > 0 ? startedAt : null,
+          summary: null,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unable to build practice session';
@@ -194,7 +300,7 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
 
   const selectAnswer = useCallback((questionId: string, choice: string) => {
     setSession((current) => {
-      if (!current) {
+      if (!current || current.completed) {
         return current;
       }
       const answers = { ...current.answers, [questionId]: choice };
@@ -222,9 +328,27 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
         return current;
       }
       const clampedIndex = Math.max(0, Math.min(index, current.questions.length - 1));
+      if (clampedIndex === current.currentIndex) {
+        return current;
+      }
+      if (current.completed) {
+        return {
+          ...current,
+          currentIndex: clampedIndex,
+        };
+      }
+      const now = Date.now();
+      const activeQuestion = current.questions[current.currentIndex];
+      const durations = { ...current.questionDurationsMs };
+      if (activeQuestion && current.questionStartedAt !== null) {
+        const elapsed = Math.max(0, now - current.questionStartedAt);
+        durations[activeQuestion.id] = (durations[activeQuestion.id] ?? 0) + elapsed;
+      }
       return {
         ...current,
         currentIndex: clampedIndex,
+        questionDurationsMs: durations,
+        questionStartedAt: now,
       };
     });
   }, []);
@@ -249,11 +373,7 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
       if (!current) {
         return current;
       }
-      return {
-        ...current,
-        completed: true,
-        remainingSeconds: 0,
-      };
+      return finaliseSession(current, Date.now());
     });
   }, []);
 

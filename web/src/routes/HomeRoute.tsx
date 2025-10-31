@@ -1,6 +1,26 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice.ts';
+import { formatSeconds } from '../utils/time.ts';
 
 export const HomeRoute = () => {
+  const [recentSummary, setRecentSummary] = useState<PracticeSummary | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage?.getItem(LAST_SUMMARY_STORAGE_KEY);
+      if (!raw) {
+        setRecentSummary(null);
+        return;
+      }
+      const parsed = JSON.parse(raw) as PracticeSummary;
+      setRecentSummary(parsed);
+    } catch (err) {
+      console.warn('Unable to read practice summary', err);
+      setRecentSummary(null);
+    }
+  }, []);
+
   return (
     <main>
       <section className="card stack">
@@ -27,6 +47,37 @@ export const HomeRoute = () => {
           </Link>
         </footer>
       </section>
+      {recentSummary && (
+        <section className="card stack">
+          <header className="stack">
+            <h2>Recent performance</h2>
+            <p>
+              Completed {new Date(recentSummary.completedAt).toLocaleString()} •{' '}
+              {recentSummary.mode.toUpperCase()} ({recentSummary.totalQuestions} questions)
+            </p>
+          </header>
+          <div className="toolbar" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="stack">
+              <span className="badge">Correct</span>
+              <strong>
+                {recentSummary.correctCount} / {recentSummary.totalQuestions}
+              </strong>
+            </div>
+            <div className="stack">
+              <span className="badge">Incorrect</span>
+              <strong>{recentSummary.incorrectCount}</strong>
+            </div>
+            <div className="stack">
+              <span className="badge">Omitted</span>
+              <strong>{recentSummary.omittedCount}</strong>
+            </div>
+            <div className="stack">
+              <span className="badge">Average time</span>
+              <strong>{formatSeconds(recentSummary.averageTimeSeconds)}</strong>
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 };

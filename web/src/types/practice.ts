@@ -41,6 +41,27 @@ export interface PracticeFilters {
   showExplanationOnSubmit?: boolean;
 }
 
+export interface QuestionPerformance {
+  questionId: string;
+  questionIndex: number;
+  selectedAnswer?: string;
+  correctAnswer: string;
+  correct: boolean;
+  timeSeconds: number;
+}
+
+export interface PracticeSummary {
+  mode: PracticeMode;
+  filters: PracticeFilters;
+  totalQuestions: number;
+  correctCount: number;
+  incorrectCount: number;
+  omittedCount: number;
+  averageTimeSeconds: number;
+  questionPerformances: QuestionPerformance[];
+  completedAt: number;
+}
+
 export interface PracticeSession {
   mode: PracticeMode;
   filters: PracticeFilters;
@@ -52,4 +73,9 @@ export interface PracticeSession {
   totalDurationSeconds: number | null;
   remainingSeconds: number | null;
   completed: boolean;
+  questionDurationsMs: Record<string, number>;
+  questionStartedAt: number | null;
+  summary: PracticeSummary | null;
 }
+
+export const LAST_SUMMARY_STORAGE_KEY = 'ms2:lastSummary';

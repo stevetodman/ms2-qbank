@@ -3,6 +3,7 @@ import { usePracticeSession } from '../context/PracticeSessionContext.tsx';
 import { formatSeconds } from '../utils/time.ts';
 import { QuestionViewer } from './QuestionViewer.tsx';
 import { ReviewSidebar } from './ReviewSidebar.tsx';
+import { PracticeSummary } from './PracticeSummary.tsx';
 
 export const PracticeWorkspace = () => {
   const { session, selectAnswer, goToQuestion, revealExplanation, completeSession } = usePracticeSession();
@@ -30,69 +31,79 @@ export const PracticeWorkspace = () => {
     };
   }, [session]);
 
-  if (!session || !activeQuestion) {
+  if (!session) {
     return null;
   }
 
-  const { question, answer, revealState, canReveal } = activeQuestion;
-  const total = session.questions.length;
-  const currentNumber = session.currentIndex + 1;
-  const progress = total === 0 ? 0 : Math.round((currentNumber / total) * 100);
-  const timeRemaining = formatSeconds(session.remainingSeconds);
-  const totalTime = formatSeconds(session.totalDurationSeconds);
-
-  const goPrevious = () => goToQuestion(session.currentIndex - 1);
-  const goNext = () => goToQuestion(session.currentIndex + 1);
+  const totalQuestions = session.questions.length;
+  const progress = totalQuestions === 0 ? 0 : Math.round(((session.currentIndex + 1) / totalQuestions) * 100);
 
   return (
     <section className="stack" id="workspace">
-      <header className="card stack">
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-          <div className="stack" style={{ gap: '0.25rem' }}>
-            <strong>Active block</strong>
-            <span>{session.mode.toUpperCase()} • {total} questions</span>
-          </div>
-          {session.totalDurationSeconds !== null && (
-            <div className="stack" style={{ alignItems: 'flex-end', gap: '0.25rem' }}>
-              <span className="badge">Time remaining</span>
-              <span className="timer">{timeRemaining} / {totalTime}</span>
+      {session.summary && (
+        <PracticeSummary session={session} onReviewQuestion={goToQuestion} />
+      )}
+      {activeQuestion && (
+        <>
+          <header className="card stack">
+            <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+              <div className="stack" style={{ gap: '0.25rem' }}>
+                <strong>Active block</strong>
+                <span>{session.mode.toUpperCase()} • {session.questions.length} questions</span>
+              </div>
+              {session.totalDurationSeconds !== null && (
+                <div className="stack" style={{ alignItems: 'flex-end', gap: '0.25rem' }}>
+                  <span className="badge">Time remaining</span>
+                  <span className="timer">{formatSeconds(session.remainingSeconds)} / {formatSeconds(session.totalDurationSeconds)}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <progress value={progress} max={100} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} />
-        <div className="toolbar">
-          <button type="button" onClick={goPrevious} disabled={session.currentIndex === 0}>
-            Previous
-          </button>
-          <button type="button" onClick={goNext} disabled={session.currentIndex >= total - 1}>
-            Next
-          </button>
-          <button type="button" onClick={completeSession} disabled={session.completed}>
-            End block
-          </button>
-        </div>
-      </header>
-      <div className="stack" style={{ gap: '1.5rem' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div style={{ flex: '1 1 60%', minWidth: '320px' }}>
-            <QuestionViewer
-              question={question}
-              mode={session.mode}
-              answer={answer}
-              revealed={revealState}
-              completed={session.completed}
-              onSelect={(choice) => selectAnswer(question.id, choice)}
-              onReveal={() => revealExplanation(question.id)}
-              canReveal={canReveal}
-              questionNumber={currentNumber}
-              totalQuestions={total}
+            <progress
+              value={progress}
+              max={100}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
             />
+            <div className="toolbar">
+              <button type="button" onClick={() => goToQuestion(session.currentIndex - 1)} disabled={session.currentIndex === 0}>
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => goToQuestion(session.currentIndex + 1)}
+                disabled={session.currentIndex >= totalQuestions - 1}
+              >
+                Next
+              </button>
+              <button type="button" onClick={completeSession} disabled={session.completed}>
+                End block
+              </button>
+            </div>
+          </header>
+          <div className="stack" style={{ gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+              <div style={{ flex: '1 1 60%', minWidth: '320px' }}>
+                <QuestionViewer
+                  question={activeQuestion.question}
+                  mode={session.mode}
+                  answer={activeQuestion.answer}
+                  revealed={activeQuestion.revealState}
+                  completed={session.completed}
+                  onSelect={(choice) => selectAnswer(activeQuestion.question.id, choice)}
+                  onReveal={() => revealExplanation(activeQuestion.question.id)}
+                  canReveal={activeQuestion.canReveal}
+                  questionNumber={session.currentIndex + 1}
+                  totalQuestions={totalQuestions}
+                />
+              </div>
+              <div style={{ flex: '1 1 30%', minWidth: '280px' }}>
+                <ReviewSidebar questionId={activeQuestion.question.id} mode={session.mode} />
+              </div>
+            </div>
           </div>
-          <div style={{ flex: '1 1 30%', minWidth: '280px' }}>
-            <ReviewSidebar questionId={question.id} mode={session.mode} />
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   );
 };
