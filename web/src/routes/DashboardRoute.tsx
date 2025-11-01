@@ -7,7 +7,7 @@ import { StudyPlannerWidget } from '../components/StudyPlannerWidget.tsx';
 import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice.ts';
 import { formatSeconds } from '../utils/time.ts';
 
-export const HomeRoute = () => {
+export const DashboardRoute = () => {
   const [recentSummary, setRecentSummary] = useState<PracticeSummary | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -73,7 +73,7 @@ export const HomeRoute = () => {
     : null;
 
   return (
-    <main>
+    <div className="stack" data-page="dashboard">
       <section className="card stack">
         <header>
           <h1>MS2 QBank Learner Experience</h1>
@@ -95,13 +95,13 @@ export const HomeRoute = () => {
           </ul>
         </div>
         <footer className="toolbar" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-          <Link className="primary-button" to="/practice">
+          <Link className="primary-button" to="/qbank">
             Launch Practice Workspace
           </Link>
           <Link className="secondary-button" to="/library">
             Explore medical library
           </Link>
-          <Link className="secondary-button" to="/notes">
+          <Link className="secondary-button" to="/notebook">
             Open learner notebook
           </Link>
         </footer>
@@ -178,6 +178,6 @@ export const HomeRoute = () => {
           </div>
         </section>
       )}
-    </main>
+    </div>
   );
 };

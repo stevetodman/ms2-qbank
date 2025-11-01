@@ -2,8 +2,8 @@ import { ArticleBrowser } from '../components/ArticleBrowser.tsx';
 
 export const LibraryRoute = () => {
   return (
-    <main className="stack">
+    <div className="stack" data-page="library">
       <ArticleBrowser />
-    </main>
+    </div>
   );
 };
