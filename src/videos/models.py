@@ -204,6 +204,7 @@ class PlaylistAddVideo(BaseModel):
 class VideoProgressUpdate(BaseModel):
     """Update video progress."""
 
+    video_id: int
     progress_seconds: int
     completed: bool = False
 

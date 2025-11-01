@@ -79,120 +79,226 @@ self.store = StudyPlanStore()  # SQLite persistence
 
 ---
 
-## ⏳ Pending Migrations (Future Work)
+### 4. Flashcard System (`src/flashcards/`)
+**Status:** ✅ Complete
+**Database:** `data/flashcards.db`
+**Tables:**
+- `decks` - Flashcard decks (user-created and official)
+- `cards` - Individual flashcards
+- `card_reviews` - User review history for spaced repetition
 
-### 4. Assessment Store (`src/assessments/`)
-**Status:** ⏳ Not migrated yet
-**Current:** In-memory dictionary (`self._records: dict[str, AssessmentRecord] = {}`)
-**Impact:** Assessments lost on server restart
+**Features:**
+- SM-2 spaced repetition algorithm
+- User-specific review tracking
+- Deck statistics and due card management
+- Question-to-flashcard conversion
+- QBank integration for creating cards from questions
 
-**Recommended Migration:**
-
-**Database:** `data/assessments.db`
-**Proposed Tables:**
-- `assessments` - Assessment metadata (assessment_id, blueprint, created_at, status)
-- `assessment_responses` - User responses (assessment_id, question_id, answer)
-- `assessment_scores` - Scoring results (assessment_id, total, correct, incorrect, percentage)
-
-**Proposed Models:**
-```python
-class AssessmentDB(SQLModel, table=True):
-    assessment_id: str = SQLField(primary_key=True)
-    user_id: Optional[int] = SQLField(default=None, index=True)
-    status: str = SQLField()  # created, in-progress, completed
-    created_at: datetime
-    started_at: Optional[datetime]
-    submitted_at: Optional[datetime]
-    time_limit_minutes: int
-    # Blueprint filters stored as JSON columns
-    blueprint_subject: Optional[str]
-    blueprint_system: Optional[str]
-    blueprint_difficulty: Optional[str]
-
-class AssessmentResponseDB(SQLModel, table=True):
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    assessment_id: str = SQLField(foreign_key="assessments.assessment_id")
-    question_id: str
-    selected_answer: Optional[str]
-
-class AssessmentScoreDB(SQLModel, table=True):
-    assessment_id: str = SQLField(primary_key=True, foreign_key="assessments.assessment_id")
-    total_questions: int
-    correct: int
-    incorrect: int
-    omitted: int
-    percentage: float
-    duration_seconds: Optional[int]
-```
-
-**Files to Create:**
-- `src/assessments/db_models.py` - Database table models
-- `src/assessments/db_store.py` - Database-backed AssessmentStore
-
-**Files to Update:**
-- `src/assessments/store.py` - Replace in-memory dict with database calls
-- `src/assessments/app.py` - Use database store
-
-**Estimated Effort:** 2-3 hours
-
-**Why Not Done Yet:** No real assessment data exists to preserve. Can be done when needed.
+**Files:**
+- `src/flashcards/models.py` - Database and API models
+- `src/flashcards/store.py` - Database operations with SM-2 algorithm
+- `src/flashcards/app.py` - FastAPI endpoints (port 8001)
 
 ---
 
-### 5. Library & Notebook (`src/library/`)
-**Status:** ⏳ Not migrated yet
-**Current:** In-memory from JSON files (`_articles`, `_notes` dicts loaded at startup)
-**Impact:** Changes to articles/notes are NOT saved back to files
+### 5. Video Library (`src/videos/`)
+**Status:** ✅ Complete
+**Database:** `data/videos.db`
+**Tables:**
+- `videos` - Video content metadata
+- `playlists` - User and official playlists
+- `playlist_videos` - Many-to-many playlist/video relationship
+- `video_progress` - User progress tracking
+- `video_bookmarks` - User-created timestamp bookmarks
 
-**Recommended Migration:**
+**Features:**
+- Video catalog with categorization (subject, system, topic)
+- Playlist management (user and official)
+- Watch progress tracking
+- Timestamp bookmarks with notes
+- View count analytics
+- Integrated authentication for user-specific features
 
+**Files:**
+- `src/videos/models.py` - Database and API models
+- `src/videos/store.py` - Database operations
+- `src/videos/app.py` - FastAPI endpoints (port 8003)
+
+---
+
+### 6. User Performance Analytics (`src/analytics/`)
+**Status:** ✅ Complete
+**Database:** `data/analytics.db`
+**Table:** `question_attempts`
+
+**Model:**
+```python
+class QuestionAttemptDB(SQLModel, table=True):
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    user_id: Optional[int] = SQLField(index=True)
+    question_id: str = SQLField(max_length=255, index=True)
+    assessment_id: Optional[str] = SQLField(max_length=255, index=True)
+
+    # Question metadata (denormalized for performance)
+    subject: Optional[str] = SQLField(max_length=100, index=True)
+    system: Optional[str] = SQLField(max_length=100, index=True)
+    difficulty: Optional[str] = SQLField(max_length=50)
+
+    # Attempt details
+    answer_given: Optional[str]
+    correct_answer: str
+    is_correct: bool = SQLField(index=True)
+    time_seconds: Optional[int]
+    mode: str = SQLField(default="practice")
+    attempted_at: datetime = SQLField(index=True)
+```
+
+**Features:**
+- Automatic attempt tracking during practice sessions
+- Subject and system performance breakdowns
+- Difficulty analysis
+- Question timing analytics
+- Daily activity streaks
+- Percentile rankings across all users
+- Weak area identification
+- Integrated with `PracticeSessionContext` for seamless tracking
+
+**Files:**
+- `src/analytics/user_models.py` - Database and API models
+- `src/analytics/user_store.py` - Analytics computation and storage
+- `src/analytics/user_app.py` - FastAPI endpoints (port 8008)
+- `web/src/components/UserAnalyticsDashboard.tsx` - Frontend dashboard
+
+**Integration:**
+- Automatically records attempts via `PracticeSessionContext.completeSession()`
+- Non-blocking async recording
+- Works with tutor, timed, and practice modes
+
+---
+
+### 7. Assessment System (`src/assessments/`)
+**Status:** ✅ Complete
+**Database:** `data/assessments.db`
+**Table:** `assessments`
+
+**Model:**
+```python
+class AssessmentDB(SQLModel, table=True):
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    assessment_id: str = SQLField(unique=True, index=True)
+    candidate_id: str = SQLField(index=True)
+
+    # Blueprint configuration (JSON)
+    subject: Optional[str]
+    system: Optional[str]
+    difficulty: Optional[str]
+    tags: str = SQLField(sa_column=Column(JSON), default="[]")
+    time_limit_minutes: int = 280
+
+    # Status and timestamps
+    status: str = SQLField(default="created", index=True)
+    created_at: datetime
+    started_at: Optional[datetime]
+    expires_at: Optional[datetime]
+    submitted_at: Optional[datetime]
+
+    # Question delivery and responses (JSON)
+    question_ids: str = SQLField(sa_column=Column(JSON), default="[]")
+    responses: str = SQLField(sa_column=Column(JSON), default="{}")
+
+    # Scoring
+    total_questions: int = 0
+    correct: int = 0
+    incorrect: int = 0
+    omitted: int = 0
+    percentage: float = 0.0
+    duration_seconds: Optional[int]
+```
+
+**Features:**
+- Full assessment lifecycle (create, start, submit, score)
+- Blueprint-based question selection
+- Timed assessment tracking with expiration
+- Response persistence
+- Automatic scoring
+- Timezone-aware datetime handling
+
+**Files:**
+- `src/assessments/db_models.py` - Database models
+- `src/assessments/db_store.py` - Database operations
+- `src/assessments/db_app.py` - FastAPI endpoints (port 8002)
+- `tests/test_assessment_database.py` - 20 comprehensive tests
+
+**Migration Impact:**
+- ✅ All tests passing
+- ✅ Compatible with existing frontend (SelfAssessmentRoute)
+- ✅ Data persists across server restarts
+
+---
+
+### 8. Medical Library & Notebook (`src/library/`)
+**Status:** ✅ Complete
 **Database:** `data/library.db`
-**Proposed Tables:**
-- `articles` - Medical library articles
-- `notebook_entries` - User notes
-- `article_tags` - Many-to-many relationship for article tags
-- `note_tags` - Many-to-many relationship for note tags
-- `note_article_links` - Many-to-many: notes ↔ articles
-- `note_question_links` - Many-to-many: notes ↔ questions
+**Tables:**
+- `articles` - Medical reference articles
+- `notebook_entries` - User notes with resource linking
 
-**Proposed Models:**
+**Models:**
 ```python
 class ArticleDB(SQLModel, table=True):
-    id: str = SQLField(primary_key=True)
-    user_id: Optional[int] = SQLField(default=None, index=True)
-    title: str
-    summary: str
-    body: str  # or use TEXT column
-    bookmarked: bool = SQLField(default=False)
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    article_id: str = SQLField(unique=True, index=True)
+    title: str = SQLField(max_length=500, index=True)
+    summary: str = SQLField(sa_column=Column(Text))
+    body: str = SQLField(sa_column=Column(Text))
+    tags: str = SQLField(sa_column=Column(JSON), default="[]")
+    bookmarked: bool = SQLField(default=False, index=True)
     created_at: datetime
+    updated_at: datetime
 
 class NotebookEntryDB(SQLModel, table=True):
-    id: str = SQLField(primary_key=True)
-    user_id: Optional[int] = SQLField(default=None, index=True)
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    note_id: str = SQLField(unique=True, index=True)
+    user_id: Optional[int] = SQLField(index=True)
     title: str
-    body: str  # or use TEXT column
-    bookmarked: bool = SQLField(default=False)
+    body: str = SQLField(sa_column=Column(Text))
+    tags: str = SQLField(sa_column=Column(JSON), default="[]")
+    bookmarked: bool = SQLField(default=False, index=True)
+
+    # Linked resources (JSON arrays)
+    article_ids: str = SQLField(sa_column=Column(JSON), default="[]")
+    question_ids: str = SQLField(sa_column=Column(JSON), default="[]")
+    video_ids: str = SQLField(sa_column=Column(JSON), default="[]")
+
     created_at: datetime
     updated_at: datetime
 ```
 
-**Initial Data Migration:**
-- Create migration script to load existing JSON files into database
-- Run once on first deployment
-- Keep JSON files as backup
+**Features:**
+- Article management (CRUD operations)
+- Notebook entries with multi-resource linking
+- Tag-based organization
+- Bookmark functionality
+- Search and filtering
+- JSON fields for flexible resource arrays
 
-**Files to Create:**
-- `src/library/db_models.py` - Database table models
-- `src/library/db_store.py` - Database-backed LibraryStore
-- `scripts/migrate_library_data.py` - One-time JSON → DB migration
+**Files:**
+- `src/library/db_models.py` - Database models
+- `src/library/db_store.py` - Database operations
+- `src/library/db_app.py` - FastAPI endpoints (port 8004)
+- `web/src/components/QuickNote.tsx` - Embedded note-taking widget
+- `web/src/components/NotebookWorkspace.tsx` - Full notebook interface
+- `tests/test_library_database.py` - 29 comprehensive tests
 
-**Files to Update:**
-- `src/library/store.py` - Replace JSON loading with database
-- `src/library/app.py` - Use database store
+**Integration:**
+- QuickNote component integrated into VideoPlayer (with timestamp support)
+- QuickNote component integrated into QuestionViewer
+- Automatic resource linking based on context
 
-**Estimated Effort:** 3-4 hours
-
-**Why Not Done Yet:** Current JSON files work fine for read-only content. Changes aren't critical to preserve yet.
+**Migration Impact:**
+- ✅ All tests passing
+- ✅ Notebook accessible from video player and question viewer
+- ✅ Data persists across server restarts
 
 ---
 
@@ -201,36 +307,35 @@ class NotebookEntryDB(SQLModel, table=True):
 | Service | Before | After | Data Loss Risk | Status |
 |---------|--------|-------|----------------|--------|
 | **Users** | N/A | ✅ SQLite | None | ✅ Complete |
-| **Reviews** | ✅ SQLite | ✅ SQLite | None | ✅ Already done |
+| **Reviews** | ✅ SQLite | ✅ SQLite | None | ✅ Complete |
 | **Study Planner** | ❌ In-memory | ✅ SQLite | **FIXED** | ✅ Complete |
-| **Assessments** | ❌ In-memory | ⏳ Pending | ⚠️ High (on restart) | Future work |
-| **Library/Notes** | ❌ In-memory | ⏳ Pending | ⚠️ Medium (changes not saved) | Future work |
+| **Flashcards** | ❌ In-memory | ✅ SQLite | **FIXED** | ✅ Complete |
+| **Videos** | ❌ In-memory | ✅ SQLite | **FIXED** | ✅ Complete |
+| **Analytics** | N/A | ✅ SQLite | None | ✅ Complete |
+| **Assessments** | ❌ In-memory | ✅ SQLite | **FIXED** | ✅ Complete |
+| **Library/Notes** | ❌ In-memory | ✅ SQLite | **FIXED** | ✅ Complete |
 | **Questions** | ✅ JSON files | ✅ JSON files | None (read-only) | No migration needed |
 
 ---
 
-## 🎯 Next Steps (When Needed)
+## 🎉 All Migrations Complete!
 
-### When to Migrate Assessments:
-- When you start collecting real assessment data
-- When you want to preserve assessment history across deployments
-- Before production launch
+All services now use proper database persistence. Data is preserved across server restarts, and the platform is ready for multi-user deployment.
 
-### When to Migrate Library:
-- When you start allowing users to create/edit notes frequently
-- When you have significant user-generated content
-- When you need to enforce data integrity constraints
-
-### Future: Unified Database
+### Future Enhancement: Unified Database
 **Long-term goal:** Consolidate all databases into a single database with proper foreign key relationships.
 
 **Current State:**
 ```
 data/
 ├── users.db          # User authentication
-├── planner.db        # Study plans
+├── planner.db        # Study plans and tasks
+├── flashcards.db     # Flashcard decks, cards, and reviews
+├── videos.db         # Videos, playlists, progress, bookmarks
+├── analytics.db      # User performance analytics
+├── assessments.db    # Self-assessment system
+├── library.db        # Medical articles and notebook entries
 ├── reviews/          # Review workflow (multiple DBs)
-├── library/          # JSON files (articles, notes)
 └── questions/        # JSON files (question bank)
 ```
 
@@ -314,19 +419,23 @@ All database models use:
 ## 🎉 Impact
 
 ### Before Migration:
-- ❌ Study plans lost on server restart
+- ❌ Data lost on server restart (in-memory storage)
 - ❌ No multi-user support (no data isolation)
 - ❌ No query capabilities (everything in memory)
 - ❌ Poor scalability
 
-### After Migration:
-- ✅ Data persists across restarts
-- ✅ Ready for multi-user (user_id indexes)
-- ✅ Can query with SQL (filter, sort, paginate)
-- ✅ Better performance (database indexes)
-- ✅ Enables future features (history, analytics, rollback)
+### After All Migrations:
+- ✅ **All data persists across restarts**
+- ✅ **Full multi-user support** with user_id indexes
+- ✅ **Powerful SQL queries** (filter, sort, paginate, aggregate)
+- ✅ **Better performance** with database indexes
+- ✅ **Comprehensive analytics** tracking user progress
+- ✅ **Integrated note-taking** across all resources
+- ✅ **Spaced repetition learning** with SM-2 algorithm
+- ✅ **Video progress tracking** with bookmarks
+- ✅ **Assessment persistence** with full lifecycle management
 
 ---
 
 **Last Updated:** 2025-11-01
-**Status:** Partial - Critical migrations complete, remaining work documented for future
+**Status:** ✅ **Complete** - All planned migrations finished. Platform ready for production deployment.

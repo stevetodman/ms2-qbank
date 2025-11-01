@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Header, status
+
+from users.auth import decode_access_token
 
 from .models import (
     BookmarkCreate,
@@ -20,6 +22,35 @@ from .models import (
     VideoUpdate,
 )
 from .store import VideoStore
+
+
+def optional_auth(authorization: Optional[str] = Header(None)) -> Optional[int]:
+    """Optional authentication - returns user_id if token present, None otherwise."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = decode_access_token(token)
+        return payload.get("user_id")
+    except Exception:
+        return None
+
+
+def get_current_user_id(authorization: str = Header(..., alias="Authorization")) -> int:
+    """Required authentication - returns user_id or raises 401."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = decode_access_token(token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user_id
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
 def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
@@ -127,8 +158,8 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.post("/playlists", response_model=PlaylistResponse, status_code=status.HTTP_201_CREATED)
     def create_playlist(
         payload: PlaylistCreate,
-        user_id: Optional[int] = None,  # TODO: Get from auth token
         store: VideoStore = Depends(get_store),
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> PlaylistResponse:
         """Create a new playlist."""
         playlist = store.create_playlist(
@@ -143,9 +174,9 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
 
     @app.get("/playlists", response_model=list[PlaylistResponse])
     def list_playlists(
-        user_id: Optional[int] = None,  # TODO: Get from auth token
         official_only: bool = False,
         store: VideoStore = Depends(get_store),
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> list[PlaylistResponse]:
         """List playlists."""
         playlists = store.list_playlists(user_id=user_id, official_only=official_only)
@@ -247,14 +278,13 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.post("/progress", response_model=VideoProgressResponse)
     def update_progress(
         payload: VideoProgressUpdate,
-        user_id: int = 1,  # TODO: Get from auth token
-        video_id: int = 1,  # TODO: Get from request body
         store: VideoStore = Depends(get_store),
+        user_id: int = Depends(get_current_user_id),
     ) -> VideoProgressResponse:
         """Update video progress."""
         progress = store.update_progress(
             user_id=user_id,
-            video_id=video_id,
+            video_id=payload.video_id,
             progress_seconds=payload.progress_seconds,
             completed=payload.completed,
         )
@@ -263,8 +293,8 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.get("/progress/{video_id}", response_model=VideoProgressResponse)
     def get_progress(
         video_id: int,
-        user_id: int = 1,  # TODO: Get from auth token
         store: VideoStore = Depends(get_store),
+        user_id: int = Depends(get_current_user_id),
     ) -> VideoProgressResponse:
         """Get video progress."""
         progress = store.get_progress(user_id, video_id)
@@ -277,8 +307,8 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.post("/bookmarks", response_model=BookmarkResponse, status_code=status.HTTP_201_CREATED)
     def create_bookmark(
         payload: BookmarkCreate,
-        user_id: int = 1,  # TODO: Get from auth token
         store: VideoStore = Depends(get_store),
+        user_id: int = Depends(get_current_user_id),
     ) -> BookmarkResponse:
         """Create a video bookmark."""
         bookmark = store.create_bookmark(
@@ -292,8 +322,8 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.get("/videos/{video_id}/bookmarks", response_model=list[BookmarkResponse])
     def get_bookmarks(
         video_id: int,
-        user_id: int = 1,  # TODO: Get from auth token
         store: VideoStore = Depends(get_store),
+        user_id: int = Depends(get_current_user_id),
     ) -> list[BookmarkResponse]:
         """Get all bookmarks for a video."""
         bookmarks = store.get_bookmarks(user_id, video_id)
@@ -302,8 +332,8 @@ def create_app(*, store: Optional[VideoStore] = None) -> FastAPI:
     @app.delete("/bookmarks/{bookmark_id}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_bookmark(
         bookmark_id: int,
-        user_id: int = 1,  # TODO: Get from auth token
         store: VideoStore = Depends(get_store),
+        user_id: int = Depends(get_current_user_id),
     ) -> None:
         """Delete a bookmark."""
         success = store.delete_bookmark(bookmark_id, user_id)

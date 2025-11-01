@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Header, status
+
+from users.auth import decode_access_token
 
 from .models import (
     CardCreate,
@@ -19,6 +21,35 @@ from .models import (
     ReviewSubmit,
 )
 from .store import FlashcardStore
+
+
+def optional_auth(authorization: Optional[str] = Header(None)) -> Optional[int]:
+    """Optional authentication - returns user_id if token present, None otherwise."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = decode_access_token(token)
+        return payload.get("user_id")
+    except Exception:
+        return None
+
+
+def get_current_user_id(authorization: str = Header(..., alias="Authorization")) -> int:
+    """Required authentication - returns user_id or raises 401."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = decode_access_token(token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user_id
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
 def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
@@ -46,7 +77,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
     def create_deck(
         payload: DeckCreate,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> DeckResponse:
         """Create a new flashcard deck."""
         deck = store.create_deck(
@@ -79,7 +110,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
         deck_type: Optional[str] = None,
         active_only: bool = True,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> list[DeckResponse]:
         """List all flashcard decks."""
         decks = store.list_decks(
@@ -113,7 +144,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
     def get_deck(
         deck_id: int,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> DeckResponse:
         """Get a specific deck by ID."""
         deck = store.get_deck(deck_id)
@@ -144,7 +175,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
         deck_id: int,
         payload: DeckUpdate,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> DeckResponse:
         """Update deck metadata."""
         deck = store.update_deck(
@@ -193,7 +224,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
     def get_deck_stats(
         deck_id: int,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> DeckStatsResponse:
         """Get detailed statistics for a deck."""
         deck = store.get_deck(deck_id)
@@ -367,7 +398,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
         deck_id: int,
         limit: Optional[int] = None,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> list[CardResponse]:
         """Get cards due for review in a deck."""
         # Verify deck exists
@@ -400,7 +431,7 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
     def submit_review(
         payload: ReviewSubmit,
         store: FlashcardStore = Depends(get_store),
-        user_id: Optional[int] = None,  # TODO: Get from auth token
+        user_id: Optional[int] = Depends(optional_auth),
     ) -> ReviewResponse:
         """Submit a card review and update spaced repetition schedule."""
         # Verify card exists
