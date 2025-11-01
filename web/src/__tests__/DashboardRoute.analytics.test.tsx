@@ -2,7 +2,7 @@ import { act } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { DashboardRoute } from '../routes/DashboardRoute.tsx';
+import { DashboardRoute } from '../routes/Dashboard.tsx';
 
 describe('DashboardRoute analytics integration', () => {
   afterEach(() => {
@@ -55,7 +55,7 @@ describe('DashboardRoute analytics integration', () => {
     };
 
     let analyticsRequestCount = 0;
-    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url.endsWith('/analytics/latest')) {
         const body = analyticsRequestCount === 0 ? firstResponse : secondResponse;
@@ -86,27 +86,28 @@ describe('DashboardRoute analytics integration', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText(/loading analytics/i)).toBeInTheDocument();
+    expect(await screen.findByText(/loading dashboard data/i)).toBeInTheDocument();
 
-    const difficultyTable = await screen.findByRole('table', { name: /difficulty distribution/i });
-    expect(difficultyTable).toBeInTheDocument();
-    const statusText = await screen.findByText(/generated/i);
-    expect(statusText).toHaveTextContent(/Fresh snapshot/i);
+    const metricsHeading = await screen.findByRole('heading', { name: /performance snapshot/i });
+    expect(metricsHeading).toBeInTheDocument();
+    expect(await screen.findByText(/Fresh data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Overall accuracy/i)).toBeInTheDocument();
+    expect(await screen.findByText('100')).toBeInTheDocument();
 
-    const refreshButton = await screen.findByRole('button', { name: /refresh metrics/i });
+    const refreshButton = await screen.findByRole('button', { name: /refresh analytics/i });
     const user = userEvent.setup();
     await act(async () => {
       await user.click(refreshButton);
     });
 
     await waitFor(() => expect(analyticsRequestCount).toBe(2));
-    await waitFor(() => expect(screen.getByRole('row', { name: /expert/i })).toBeInTheDocument());
-    expect(await screen.findByText(/stale snapshot/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Stale data/i)).toBeInTheDocument();
+    expect(await screen.findByText('105')).toBeInTheDocument();
   });
 
   it('shows an error message when analytics fail to load', async () => {
     let analyticsRequestCount = 0;
-    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+    jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url.endsWith('/analytics/latest')) {
         analyticsRequestCount += 1;
@@ -132,7 +133,7 @@ describe('DashboardRoute analytics integration', () => {
     );
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Failed to load analytics: Analytics request failed with status 500');
+    expect(alert).toHaveTextContent('Analytics unavailable: Analytics request failed with status 500');
 
     expect(analyticsRequestCount).toBe(1);
   });
