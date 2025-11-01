@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import logging
 from typing import Dict, List
 
+import jwt
 from fastapi.testclient import TestClient
 
 from analytics.scheduler import AnalyticsRefreshScheduler
+from analytics.service import AnalyticsService
 import search.app as search_app
 from reviews.models import ReviewAction, ReviewEvent, ReviewerRole
 from reviews.store import ReviewStore
+from reviews.app import create_app
+
+JWT_SECRET = "analytics-test-secret"
 
 
 def _write_artifact(directory, basename: str, metrics: Dict[str, object], generated_at: str) -> None:
@@ -19,6 +25,15 @@ def _write_artifact(directory, basename: str, metrics: Dict[str, object], genera
     json_path.write_text(json.dumps(payload), encoding="utf-8")
     markdown_path = directory / f"{basename}.md"
     markdown_path.write_text("# metrics\n", encoding="utf-8")
+
+
+def _issue_token(identity: str = "analytics-tester", roles: List[str] | None = None) -> str:
+    payload = {"sub": identity, "roles": roles or ["admin"]}
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+
+def _auth_headers(identity: str = "analytics-tester", roles: List[str] | None = None) -> Dict[str, str]:
+    return {"Authorization": f"Bearer {_issue_token(identity, roles)}"}
 
 
 def test_latest_analytics_endpoint_returns_latest(tmp_path, monkeypatch):
@@ -120,6 +135,84 @@ def test_latest_analytics_marks_fresh_when_recent(tmp_path, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["is_fresh"] is True
+
+
+def test_analytics_health_endpoint_reports_fresh_snapshot(tmp_path):
+    artifact_dir = tmp_path / "analytics"
+    artifact_dir.mkdir()
+    questions_dir = tmp_path / "questions"
+    questions_dir.mkdir()
+
+    metrics = _default_metrics_payload()
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    timestamp = now.strftime("%Y%m%dT%H%M%SZ")
+    _write_artifact(artifact_dir, timestamp, metrics, now.isoformat().replace("+00:00", "Z"))
+
+    scheduler = AnalyticsRefreshScheduler(
+        data_dir=questions_dir,
+        artifact_dir=artifact_dir,
+        docs_markdown=None,
+        docs_json=None,
+    )
+    service = AnalyticsService(
+        scheduler=scheduler,
+        artifact_dir=artifact_dir,
+        check_interval=timedelta(seconds=1),
+    )
+    store = ReviewStore(tmp_path / "reviews.db")
+    app = create_app(store, jwt_secret=JWT_SECRET, analytics_service=service)
+
+    with TestClient(app) as client:
+        response = client.get("/analytics/health", headers=_auth_headers())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_fresh"] is True
+    assert payload["generated_at"] == now.isoformat().replace("+00:00", "Z")
+
+
+def test_analytics_service_warns_when_snapshot_stale(tmp_path, caplog):
+    asyncio.run(_assert_stale_warning(tmp_path, caplog))
+
+
+async def _assert_stale_warning(tmp_path, caplog) -> None:
+    artifact_dir = tmp_path / "analytics"
+    artifact_dir.mkdir()
+    questions_dir = tmp_path / "questions"
+    questions_dir.mkdir()
+
+    stale_time = datetime.now(timezone.utc) - timedelta(minutes=30)
+    timestamp = stale_time.strftime("%Y%m%dT%H%M%SZ")
+    _write_artifact(
+        artifact_dir,
+        timestamp,
+        _default_metrics_payload(),
+        stale_time.isoformat().replace("+00:00", "Z"),
+    )
+
+    scheduler = AnalyticsRefreshScheduler(
+        data_dir=questions_dir,
+        artifact_dir=artifact_dir,
+        docs_markdown=None,
+        docs_json=None,
+    )
+    service = AnalyticsService(
+        scheduler=scheduler,
+        artifact_dir=artifact_dir,
+        freshness_window=timedelta(minutes=10),
+        check_interval=timedelta(milliseconds=50),
+    )
+
+    caplog.set_level(logging.WARNING)
+
+    await service.start()
+    try:
+        await asyncio.sleep(0.2)
+    finally:
+        await service.shutdown()
+
+    warnings = [record.message for record in caplog.records if record.levelno >= logging.WARNING]
+    assert any("Analytics snapshot is stale" in message for message in warnings)
 
 
 def _build_review_event(action: ReviewAction, role: ReviewerRole, comment: str) -> ReviewEvent:
