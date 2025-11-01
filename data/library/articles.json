@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cardiology-basics",
+    "title": "Cardiology Essentials",
+    "summary": "Core physiology and pathophysiology concepts for board review.",
+    "body": "The myocardium relies on coordinated electrical and mechanical cycles. Review coronary perfusion timing, Starling curves, and murmurs associated with valvular lesions.",
+    "tags": ["cardiology", "physiology", "board-review"],
+    "bookmarked": false
+  },
+  {
+    "id": "infectious-diseases",
+    "title": "Approach to Infectious Disease",
+    "summary": "Diagnostic and management pearls for common pathogens.",
+    "body": "When evaluating fever, start with a focused history covering travel, exposures, and immune status. Empiric therapy should be tailored after cultures when possible.",
+    "tags": ["infectious-disease", "microbiology"],
+    "bookmarked": false
+  },
+  {
+    "id": "renal-pathology",
+    "title": "Renal Pathology High-Yield",
+    "summary": "Pattern recognition across nephritic and nephrotic syndromes.",
+    "body": "Light microscopy findings combined with immunofluorescence narrow the differential. Pay attention to complement levels and systemic symptoms to distinguish lupus nephritis variants.",
+    "tags": ["nephrology", "pathology", "board-review"],
+    "bookmarked": true
+  }
+]
