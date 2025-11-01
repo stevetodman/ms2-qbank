@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "jest",
     "test:watch": "jest --watch",
+    "type-check": "tsc --noEmit",
     "lint": "eslint src --ext ts,tsx",
     "test:e2e": "playwright test"
   },

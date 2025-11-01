@@ -1,0 +1,26 @@
+# Development and Testing Dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# First, install production dependencies
+-r requirements.txt
+
+# Testing
+pytest>=7.4,<8.0
+pytest-cov>=4.1,<5.0
+pytest-asyncio>=0.21,<0.22
+pytest-mock>=3.12,<4.0
+
+# Code Quality
+ruff>=0.1.0  # Fast Python linter
+black>=23.0  # Code formatter
+isort>=5.12  # Import sorter
+mypy>=1.5   # Static type checker
+
+# Security
+safety>=2.3  # Check for known security vulnerabilities
+pip-audit>=2.6  # Audit pip packages for vulnerabilities
+bandit>=1.7  # Security linter
+
+# Development Tools
+ipython>=8.12  # Enhanced Python shell
+ipdb>=0.13  # IPython debugger
