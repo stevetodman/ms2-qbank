@@ -8,8 +8,9 @@ import type {
   UpdateNotePayload,
 } from '../types/library.ts';
 import { resolveEnv } from '../utils/env.ts';
+import { apiClient } from './client';
 
-const LIBRARY_API_BASE_URL = resolveEnv('VITE_LIBRARY_API_BASE_URL', '/api/library');
+const LIBRARY_API_BASE_URL = resolveEnv('VITE_LIBRARY_API_BASE_URL', 'http://localhost:8004');
 
 async function handleResponse<T>(response: Response, message: string): Promise<T> {
   if (!response.ok) {

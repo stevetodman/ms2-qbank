@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as videoApi from '../api/videos';
+import { QuickNote } from './QuickNote';
 import '../styles/videos.css';
 
 interface VideoPlayerProps {
@@ -296,6 +297,17 @@ export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
         <div className="video-description">
           <h3>Description</h3>
           <p>{video.description}</p>
+        </div>
+
+        <div className="video-notes-section">
+          <QuickNote
+            videoId={video.id}
+            timestamp={Math.floor(currentTime)}
+            compact={true}
+            onSuccess={() => {
+              // Optionally reload notes or show success message
+            }}
+          />
         </div>
 
         {bookmarks.length > 0 && (

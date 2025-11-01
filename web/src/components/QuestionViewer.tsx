@@ -2,6 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import type { PracticeMode, QuestionPayload } from '../types/practice.ts';
 import { CreateSmartCardModal } from './CreateSmartCardModal';
+import { QuickNote } from './QuickNote';
 
 interface QuestionViewerProps {
   question: QuestionPayload;
@@ -125,6 +126,15 @@ export const QuestionViewer = ({
                   Create SmartCard
                 </button>
               )}
+            </div>
+            <div style={{ marginTop: '1rem' }}>
+              <QuickNote
+                questionId={question.id}
+                compact={true}
+                onSuccess={() => {
+                  // Optionally show success message
+                }}
+              />
             </div>
           </section>
         )}
