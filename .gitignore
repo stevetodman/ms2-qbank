@@ -6,4 +6,4 @@ web/playwright-report/
 web/test-results/
 data/reviews/
 *.db
-data/users.db
+data/*.db
