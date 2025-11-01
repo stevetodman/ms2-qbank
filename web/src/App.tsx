@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout.tsx';
-import { DashboardRoute } from './routes/DashboardRoute.tsx';
+import { DashboardRoute } from './routes/Dashboard.tsx';
 import { QBankRoute } from './routes/QBankRoute.tsx';
 import { SelfAssessmentRoute } from './routes/SelfAssessmentRoute.tsx';
 import { FlashcardsRoute } from './routes/FlashcardsRoute.tsx';
