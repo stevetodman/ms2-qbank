@@ -12,7 +12,7 @@ from loguru import logger
 # Import monitoring utilities
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from common.logging import add_monitoring, log_startup_info
+from common.logging import add_monitoring
 
 from .auth import (
     create_access_token,

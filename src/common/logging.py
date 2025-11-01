@@ -14,7 +14,7 @@ import uuid
 from typing import Optional
 
 import sentry_sdk
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from loguru import logger
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
