@@ -28,6 +28,20 @@ Artifacts follow the `YYYYMMDDTHHMMSSZ` naming convention. The JSON payload
 contains the metrics and the UTC timestamp of generation, while the markdown
 file renders the dashboard for quick inspection.
 
+## Production worker
+
+The analytics worker now runs alongside the review API process. Start the API
+server in production (for example via `uvicorn reviews.app:app --host 0.0.0.0`)
+and the worker will automatically:
+
+- trigger analytics refreshes when review statuses change,
+- watch `data/analytics/` for new artifacts, and
+- emit warnings if no snapshot newer than ten minutes is available.
+
+Operations teams can query `GET /analytics/health` on the review API to check
+freshness. The response includes the timestamp of the latest snapshot and a
+boolean `is_fresh` flag suitable for monitoring dashboards.
+
 ## API surface
 
 The FastAPI service exposes the `/analytics/latest` endpoint which returns the

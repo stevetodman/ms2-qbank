@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from analytics.scheduler import AnalyticsRefreshScheduler
+from analytics.service import AnalyticsService
 from .auth import AuthenticationMiddleware, AuthenticatedUser, bearer_jwt_resolver, get_current_user
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
@@ -69,7 +69,12 @@ def _validate_role_for_action(
         raise HTTPException(status_code=403, detail="Authenticated user lacks required role")
 
 
-def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str] = None) -> FastAPI:
+def create_app(
+    store: Optional[ReviewStore] = None,
+    *,
+    jwt_secret: Optional[str] = None,
+    analytics_service: Optional[AnalyticsService] = None,
+) -> FastAPI:
     secret = jwt_secret or os.getenv("REVIEWS_JWT_SECRET")
     if not secret:
         raise RuntimeError("JWT secret must be configured for the review API")
@@ -78,18 +83,21 @@ def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str]
     app.add_middleware(AuthenticationMiddleware, resolver=bearer_jwt_resolver(secret))
 
     store_instance = store or _get_default_store()
-    scheduler = AnalyticsRefreshScheduler()
+    service = analytics_service or AnalyticsService()
     app.state.review_store = store_instance
-    app.state.analytics_scheduler = scheduler
+    app.state.analytics_service = service
+    app.state.analytics_scheduler = service.scheduler
+    app.include_router(service.router)
 
     @app.on_event("startup")
     async def _startup() -> None:
-        await scheduler.start()
-        store_instance.set_analytics_hook(scheduler.handle_status_change)
+        await service.start()
+        store_instance.set_analytics_hook(service.handle_status_change)
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
-        await scheduler.shutdown()
+        store_instance.set_analytics_hook(None)
+        await service.shutdown()
 
     def get_store() -> ReviewStore:
         return app.state.review_store
