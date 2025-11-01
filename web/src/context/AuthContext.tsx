@@ -6,6 +6,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import * as authApi from '../api/auth.ts';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
+const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
+
+// Refresh token 1 minute before expiration (access token is 15 min)
+const REFRESH_THRESHOLD_MS = 60 * 1000; // 1 minute in milliseconds
 
 interface AuthContextValue {
   user: authApi.UserProfile | null;
@@ -30,6 +34,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(() => {
     // Initialize from localStorage on mount
     return localStorage.getItem(TOKEN_STORAGE_KEY);
+  });
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => {
+    // Initialize from localStorage on mount
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,15 +71,52 @@ export function AuthProvider({ children }: AuthProviderProps) {
     void loadUser();
   }, [token]);
 
+  // Set up automatic token refresh
+  useEffect(() => {
+    if (!token || !refreshToken) {
+      return;
+    }
+
+    // Calculate when to refresh (1 minute before expiration)
+    // Access token expires in 15 minutes (900 seconds)
+    const refreshTime = (15 * 60 * 1000) - REFRESH_THRESHOLD_MS; // 14 minutes
+
+    const refreshTimer = setTimeout(async () => {
+      try {
+        console.log('Auto-refreshing access token...');
+        const response = await authApi.refreshToken(refreshToken);
+
+        // Update tokens
+        localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
+        localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, response.refresh_token);
+        setToken(response.access_token);
+        setRefreshToken(response.refresh_token);
+      } catch (err) {
+        console.error('Failed to refresh token:', err);
+        // Clear auth state on refresh failure
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        setToken(null);
+        setRefreshToken(null);
+        setUser(null);
+        setError('Session expired. Please login again.');
+      }
+    }, refreshTime);
+
+    return () => clearTimeout(refreshTimer);
+  }, [token, refreshToken]);
+
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
       const response = await authApi.login({ email, password });
 
-      // Store token
+      // Store both tokens
       localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, response.refresh_token);
       setToken(response.access_token);
+      setRefreshToken(response.refresh_token);
 
       // User profile will be loaded by useEffect
     } catch (err) {
@@ -112,7 +157,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       // Clear state regardless of API call success
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
       setToken(null);
+      setRefreshToken(null);
       setUser(null);
       setError(null);
     }

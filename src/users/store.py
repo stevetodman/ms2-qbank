@@ -10,7 +10,7 @@ from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from .auth import hash_password, verify_password
-from .models import User, UserCreate, UserUpdate
+from .models import RefreshToken, User, UserCreate, UserUpdate
 
 
 class UserStore:
@@ -168,3 +168,121 @@ class UserStore:
             session.commit()
             session.refresh(user)
             return user
+
+    def store_refresh_token(
+        self,
+        user_id: int,
+        token: str,
+        expires_at: datetime,
+        device_info: Optional[str] = None,
+    ) -> RefreshToken:
+        """Store a refresh token in the database.
+
+        Args:
+            user_id: User's database ID
+            token: JWT refresh token string
+            expires_at: Token expiration timestamp
+            device_info: Optional device/browser information
+
+        Returns:
+            Created RefreshToken object
+        """
+        with Session(self.engine) as session:
+            refresh_token = RefreshToken(
+                user_id=user_id,
+                token=token,
+                expires_at=expires_at,
+                device_info=device_info,
+            )
+            session.add(refresh_token)
+            session.commit()
+            session.refresh(refresh_token)
+            return refresh_token
+
+    def get_refresh_token(self, token: str) -> Optional[RefreshToken]:
+        """Retrieve a refresh token by its value.
+
+        Args:
+            token: JWT refresh token string
+
+        Returns:
+            RefreshToken object if found and valid, None otherwise
+        """
+        with Session(self.engine) as session:
+            refresh_token = session.exec(
+                select(RefreshToken).where(
+                    RefreshToken.token == token,
+                    RefreshToken.revoked == False,
+                    RefreshToken.expires_at > datetime.now(timezone.utc),
+                )
+            ).first()
+            return refresh_token
+
+    def revoke_refresh_token(self, token: str) -> bool:
+        """Revoke a specific refresh token.
+
+        Args:
+            token: JWT refresh token string
+
+        Returns:
+            True if token was revoked, False if not found
+        """
+        with Session(self.engine) as session:
+            refresh_token = session.exec(
+                select(RefreshToken).where(RefreshToken.token == token)
+            ).first()
+
+            if not refresh_token:
+                return False
+
+            refresh_token.revoked = True
+            session.add(refresh_token)
+            session.commit()
+            return True
+
+    def revoke_all_user_tokens(self, user_id: int) -> int:
+        """Revoke all refresh tokens for a user.
+
+        Args:
+            user_id: User's database ID
+
+        Returns:
+            Number of tokens revoked
+        """
+        with Session(self.engine) as session:
+            tokens = session.exec(
+                select(RefreshToken).where(
+                    RefreshToken.user_id == user_id,
+                    RefreshToken.revoked == False,
+                )
+            ).all()
+
+            count = 0
+            for token in tokens:
+                token.revoked = True
+                session.add(token)
+                count += 1
+
+            session.commit()
+            return count
+
+    def cleanup_expired_tokens(self) -> int:
+        """Remove expired refresh tokens from the database.
+
+        Returns:
+            Number of tokens deleted
+        """
+        with Session(self.engine) as session:
+            expired_tokens = session.exec(
+                select(RefreshToken).where(
+                    RefreshToken.expires_at < datetime.now(timezone.utc)
+                )
+            ).all()
+
+            count = 0
+            for token in expired_tokens:
+                session.delete(token)
+                count += 1
+
+            session.commit()
+            return count

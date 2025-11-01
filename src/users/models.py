@@ -56,6 +56,29 @@ class User(SQLModel, table=True):
     is_active: bool = SQLField(default=True)
 
 
+class RefreshToken(SQLModel, table=True):
+    """Refresh token for JWT authentication.
+
+    Allows users to obtain new access tokens without re-authenticating.
+    Tokens can be revoked for security (logout, password change, etc.).
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    user_id: int = SQLField(foreign_key="users.id", index=True)
+    token: str = SQLField(unique=True, index=True, max_length=500)
+    expires_at: datetime = SQLField(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    created_at: datetime = SQLField(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    revoked: bool = SQLField(default=False)
+    device_info: Optional[str] = SQLField(default=None, max_length=500)  # User agent for tracking
+
+
 class UserCreate(BaseModel):
     """Request payload for user registration."""
 
@@ -76,8 +99,15 @@ class TokenResponse(BaseModel):
     """Response containing authentication tokens."""
 
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
-    expires_in: int = Field(description="Token expiration time in seconds")
+    expires_in: int = Field(description="Access token expiration time in seconds")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request payload for refreshing access token."""
+
+    refresh_token: str
 
 
 class UserProfile(BaseModel):

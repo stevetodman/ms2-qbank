@@ -33,6 +33,7 @@ export interface RegisterData {
 
 export interface TokenResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   expires_in: number;
 }
@@ -127,7 +128,27 @@ export async function updateProfile(
 }
 
 /**
- * Logout (server acknowledges, client should discard token)
+ * Refresh access token using refresh token
+ */
+export async function refreshToken(refreshToken: string): Promise<TokenResponse> {
+  const response = await fetch(`${AUTH_API_BASE}/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Token refresh failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Logout (revokes all refresh tokens)
  */
 export async function logout(token: string): Promise<void> {
   await fetch(`${AUTH_API_BASE}/logout`, {

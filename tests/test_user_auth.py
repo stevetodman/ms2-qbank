@@ -287,3 +287,279 @@ def test_authentication_flow(store):
     # Authenticate with wrong credentials
     failed_auth = store.authenticate("student@example.com", "WrongPassword")
     assert failed_auth is None
+
+
+# --- Refresh Token Tests ---
+
+
+def test_login_returns_refresh_token(client):
+    """Test that login returns both access and refresh tokens."""
+    # Register a user
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    # Login
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+    assert data["expires_in"] == 900  # 15 minutes in seconds
+
+
+def test_refresh_token_flow(client):
+    """Test complete refresh token flow."""
+    # Register and login
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    assert login_response.status_code == 200
+    login_data = login_response.json()
+    old_access_token = login_data["access_token"]
+    refresh_token = login_data["refresh_token"]
+
+    # Use refresh token to get new access token
+    refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert refresh_response.status_code == 200
+    refresh_data = refresh_response.json()
+    assert "access_token" in refresh_data
+    assert "refresh_token" in refresh_data
+    # New tokens should be different from old ones
+    assert refresh_data["access_token"] != old_access_token
+    assert refresh_data["refresh_token"] != refresh_token
+
+    # New access token should work
+    profile_response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {refresh_data['access_token']}"},
+    )
+    assert profile_response.status_code == 200
+
+
+def test_refresh_token_invalidates_old_token(client):
+    """Test that old refresh token cannot be reused after refresh."""
+    # Register and login
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Use refresh token once
+    refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_response.status_code == 200
+
+    # Try to use old refresh token again - should fail
+    second_refresh = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert second_refresh.status_code == 401
+    assert "not found or has been revoked" in second_refresh.json()["detail"]
+
+
+def test_refresh_with_invalid_token(client):
+    """Test that refresh fails with invalid token."""
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": "invalid-token-string"},
+    )
+
+    assert response.status_code == 401
+    assert "Invalid or expired" in response.json()["detail"]
+
+
+def test_refresh_with_access_token(client):
+    """Test that refresh fails when using an access token instead of refresh token."""
+    # Register and login
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    # Try to refresh using access token (wrong token type)
+    access_token = login_response.json()["access_token"]
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": access_token},
+    )
+
+    assert response.status_code == 401
+    assert "Invalid or expired" in response.json()["detail"]
+
+
+def test_logout_revokes_refresh_tokens(client, store):
+    """Test that logout revokes all refresh tokens for a user."""
+    # Register and login
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    # Login to get tokens
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    access_token = login_response.json()["access_token"]
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Logout
+    logout_response = client.post(
+        "/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert logout_response.status_code == 204
+
+    # Try to use refresh token after logout - should fail
+    refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_response.status_code == 401
+
+
+def test_refresh_token_stored_in_database(client, store):
+    """Test that refresh tokens are properly stored in the database."""
+    # Register and login
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Verify token is in database
+    db_token = store.get_refresh_token(refresh_token)
+    assert db_token is not None
+    assert db_token.token == refresh_token
+    assert db_token.revoked is False
+
+
+def test_multiple_refresh_tokens_per_user(client):
+    """Test that a user can have multiple active refresh tokens (multi-device support)."""
+    # Register
+    client.post(
+        "/auth/register",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+            "full_name": "Jane Doe",
+        },
+    )
+
+    # Login from "device 1"
+    login1 = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    refresh_token1 = login1.json()["refresh_token"]
+
+    # Login from "device 2"
+    login2 = client.post(
+        "/auth/login",
+        json={
+            "email": "student@example.com",
+            "password": "SecurePass123!",
+        },
+    )
+    refresh_token2 = login2.json()["refresh_token"]
+
+    # Both tokens should be different
+    assert refresh_token1 != refresh_token2
+
+    # Both tokens should work
+    refresh1_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token1},
+    )
+    assert refresh1_response.status_code == 200
+
+    refresh2_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token2},
+    )
+    assert refresh2_response.status_code == 200
