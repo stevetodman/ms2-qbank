@@ -15,7 +15,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # JWT configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 15 minutes
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7 days
+JWT_EXPIRATION_HOURS = 24 * 7  # 7 days (legacy, for backwards compatibility)
 
 
 def hash_password(password: str) -> str:
@@ -100,3 +102,69 @@ def get_user_id_from_token(token: str) -> Optional[int]:
         return int(user_id) if user_id else None
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, ValueError):
         return None
+
+
+def create_token_pair(user_id: int, email: str) -> dict:
+    """Create both access and refresh tokens for a user.
+
+    Args:
+        user_id: User's database ID
+        email: User's email address
+
+    Returns:
+        Dictionary containing:
+            - access_token: Short-lived access token (15 min)
+            - refresh_token: Long-lived refresh token (7 days)
+            - token_type: "bearer"
+            - expires_in: Access token expiration in seconds
+    """
+    # Create short-lived access token (15 minutes)
+    access_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_payload = {
+        "sub": str(user_id),
+        "email": email,
+        "type": "access",
+        "exp": datetime.now(timezone.utc) + access_expires,
+        "iat": datetime.now(timezone.utc),
+    }
+    access_token = jwt.encode(access_payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+    # Create long-lived refresh token (7 days)
+    refresh_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_payload = {
+        "sub": str(user_id),
+        "type": "refresh",
+        "exp": datetime.now(timezone.utc) + refresh_expires,
+        "iat": datetime.now(timezone.utc),
+    }
+    refresh_token = jwt.encode(refresh_payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+        "refresh_expires_at": datetime.now(timezone.utc) + refresh_expires,
+    }
+
+
+def decode_refresh_token(token: str) -> dict:
+    """Decode and validate a refresh token.
+
+    Args:
+        token: Refresh token string
+
+    Returns:
+        Decoded token payload
+
+    Raises:
+        jwt.ExpiredSignatureError: If token has expired
+        jwt.InvalidTokenError: If token is invalid or not a refresh token
+    """
+    payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+
+    # Verify this is a refresh token
+    if payload.get("type") != "refresh":
+        raise jwt.InvalidTokenError("Token is not a refresh token")
+
+    return payload

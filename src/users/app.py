@@ -7,8 +7,22 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .auth import create_access_token, get_user_id_from_token, JWT_EXPIRATION_HOURS
-from .models import TokenResponse, User, UserCreate, UserLogin, UserProfile, UserUpdate
+from .auth import (
+    create_access_token,
+    create_token_pair,
+    decode_refresh_token,
+    get_user_id_from_token,
+    JWT_EXPIRATION_HOURS,
+)
+from .models import (
+    RefreshTokenRequest,
+    TokenResponse,
+    User,
+    UserCreate,
+    UserLogin,
+    UserProfile,
+    UserUpdate,
+)
 from .store import UserStore
 
 security = HTTPBearer()
@@ -108,14 +122,14 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
 
     @app.post("/auth/login", response_model=TokenResponse)
     def login(credentials: UserLogin, store: UserStore = Depends(get_store)) -> TokenResponse:
-        """Authenticate a user and return an access token.
+        """Authenticate a user and return access and refresh tokens.
 
         Args:
             credentials: User login credentials
             store: User store instance
 
         Returns:
-            JWT access token response
+            JWT token pair (access + refresh tokens)
 
         Raises:
             HTTPException: If authentication fails
@@ -129,13 +143,89 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Generate JWT access token
-        access_token = create_access_token(user.id, user.email)
+        # Generate JWT token pair (access + refresh)
+        token_data = create_token_pair(user.id, user.email)
+
+        # Store refresh token in database
+        store.store_refresh_token(
+            user_id=user.id,
+            token=token_data["refresh_token"],
+            expires_at=token_data["refresh_expires_at"],
+        )
 
         return TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            expires_in=JWT_EXPIRATION_HOURS * 3600,  # Convert hours to seconds
+            access_token=token_data["access_token"],
+            refresh_token=token_data["refresh_token"],
+            token_type=token_data["token_type"],
+            expires_in=token_data["expires_in"],
+        )
+
+    @app.post("/auth/refresh", response_model=TokenResponse)
+    def refresh_token(
+        refresh_request: RefreshTokenRequest,
+        store: UserStore = Depends(get_store),
+    ) -> TokenResponse:
+        """Refresh an access token using a refresh token.
+
+        Args:
+            refresh_request: Refresh token request payload
+            store: User store instance
+
+        Returns:
+            New JWT token pair (access + refresh tokens)
+
+        Raises:
+            HTTPException: If refresh token is invalid or expired
+        """
+        import jwt
+
+        try:
+            # Decode and validate refresh token
+            payload = decode_refresh_token(refresh_request.refresh_token)
+            user_id = int(payload.get("sub"))
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+
+        # Check if token exists in database and is not revoked
+        db_token = store.get_refresh_token(refresh_request.refresh_token)
+        if db_token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token not found or has been revoked",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Get user from database
+        user = store.get_user_by_id(user_id)
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Revoke old refresh token
+        store.revoke_refresh_token(refresh_request.refresh_token)
+
+        # Generate new token pair
+        token_data = create_token_pair(user.id, user.email)
+
+        # Store new refresh token in database
+        store.store_refresh_token(
+            user_id=user.id,
+            token=token_data["refresh_token"],
+            expires_at=token_data["refresh_expires_at"],
+        )
+
+        return TokenResponse(
+            access_token=token_data["access_token"],
+            refresh_token=token_data["refresh_token"],
+            token_type=token_data["token_type"],
+            expires_in=token_data["expires_in"],
         )
 
     # --- PROTECTED ENDPOINTS ---
@@ -204,21 +294,24 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
         )
 
     @app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
-    def logout(current_user: User = Depends(get_current_user)) -> None:
-        """Logout the current user (client should discard token).
+    def logout(
+        current_user: User = Depends(get_current_user),
+        store: UserStore = Depends(get_store),
+    ) -> None:
+        """Logout the current user and revoke all refresh tokens.
 
         Args:
             current_user: Authenticated user from JWT token
+            store: User store instance
 
         Note:
-            This endpoint validates the user is authenticated but doesn't
-            invalidate the token server-side (stateless JWT design).
-            The client should discard the token on logout.
+            This revokes all refresh tokens for the user. Access tokens
+            remain valid until expiration (15 minutes) due to stateless JWT design.
         """
-        # JWT tokens are stateless, so we can't invalidate them server-side
-        # The client should discard the token
-        # In future, we could add token blacklisting if needed
-        pass
+        # Revoke all refresh tokens for this user
+        store.revoke_all_user_tokens(current_user.id)
+        # Access tokens cannot be invalidated server-side (stateless JWT)
+        # They will expire in 15 minutes
 
     return app
 
