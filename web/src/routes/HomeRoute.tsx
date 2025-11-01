@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics.ts';
+import { fetchStudyPlans, type StudyPlan } from '../api/planner.ts';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard.tsx';
+import { StudyPlannerWidget } from '../components/StudyPlannerWidget.tsx';
 import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice.ts';
 import { formatSeconds } from '../utils/time.ts';
 
@@ -10,6 +12,10 @@ export const HomeRoute = () => {
   const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  const [planner, setPlanner] = useState<StudyPlan | null>(null);
+  const [loadingPlanner, setLoadingPlanner] = useState(false);
+  const [plannerError, setPlannerError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -40,9 +46,27 @@ export const HomeRoute = () => {
     }
   }, []);
 
+  const loadPlanner = useCallback(async () => {
+    setLoadingPlanner(true);
+    setPlannerError(null);
+    try {
+      const plans = await fetchStudyPlans();
+      setPlanner(plans[0] ?? null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load study plan';
+      setPlannerError(message);
+    } finally {
+      setLoadingPlanner(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadAnalytics();
   }, [loadAnalytics]);
+
+  useEffect(() => {
+    void loadPlanner();
+  }, [loadPlanner]);
 
   const generatedLabel = analytics?.generatedAt
     ? new Date(analytics.generatedAt).toLocaleString()
@@ -74,6 +98,15 @@ export const HomeRoute = () => {
           </Link>
         </footer>
       </section>
+
+      <StudyPlannerWidget
+        plan={planner}
+        loading={loadingPlanner}
+        error={plannerError}
+        onRefresh={() => {
+          void loadPlanner();
+        }}
+      />
 
       <section className="card stack">
         <header className="toolbar" style={{ justifyContent: 'space-between', gap: '1rem' }}>
