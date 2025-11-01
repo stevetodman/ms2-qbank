@@ -65,13 +65,19 @@ export const HomeRoute = () => {
             <li>Create a personalised practice block with rich filters and delivery modes.</li>
             <li>Answer questions with immediate or deferred explanations based on your mode.</li>
             <li>Bookmark, tag, and request editorial review directly from the question surface.</li>
+            <li>Study curated ReadyDecks and your SmartCards from the Flashcards workspace.</li>
             <li>Review the audit history for every question to understand outstanding actions.</li>
           </ul>
         </div>
         <footer>
-          <Link className="primary-button" to="/practice">
-            Launch Practice Workspace
-          </Link>
+          <div className="toolbar">
+            <Link className="primary-button" to="/practice">
+              Launch Practice Workspace
+            </Link>
+            <Link className="secondary-button" to="/flashcards">
+              Study Flashcards
+            </Link>
+          </div>
         </footer>
       </section>
 

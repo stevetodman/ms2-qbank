@@ -1,0 +1,49 @@
+[
+  {
+    "name": "Cardiology Foundations",
+    "description": "ReadyDeck covering essential cardiovascular physiology and pathology.",
+    "deck_type": "ready",
+    "cards": [
+      {
+        "prompt": "Which ion channel is primarily responsible for the rapid depolarization phase of a ventricular myocyte action potential?",
+        "answer": "The voltage-gated fast sodium (Na+) channel mediates phase 0 rapid depolarization.",
+        "tags": ["cardiology", "electrophysiology"]
+      },
+      {
+        "prompt": "Name the triad of clinical findings consistent with Beck's triad in cardiac tamponade.",
+        "answer": "Hypotension, jugular venous distension, and muffled heart sounds.",
+        "tags": ["cardiology", "emergency"],
+        "explanation": "Accumulating pericardial fluid restricts ventricular filling, lowering stroke volume and blood pressure while causing venous congestion and dampened auscultation."
+      }
+    ]
+  },
+  {
+    "name": "Renal Physiology Review",
+    "description": "ReadyDeck emphasizing nephron transporters and hormonal regulation.",
+    "deck_type": "ready",
+    "cards": [
+      {
+        "prompt": "Where is the sodium-glucose co-transporter (SGLT2) located within the nephron?",
+        "answer": "In the proximal convoluted tubule, reabsorbing filtered glucose with sodium.",
+        "tags": ["renal", "physiology"]
+      },
+      {
+        "prompt": "Which hormone increases water permeability of the collecting duct principal cells?",
+        "answer": "Antidiuretic hormone (vasopressin) via insertion of aquaporin-2 channels.",
+        "tags": ["renal", "hormones"]
+      }
+    ]
+  },
+  {
+    "name": "My Custom Pathology Notes",
+    "description": "SmartCard deck seeded with editable high-yield cues.",
+    "deck_type": "smart",
+    "cards": [
+      {
+        "prompt": "List two oncogenes commonly mutated in colorectal carcinoma.",
+        "answer": "KRAS and c-MYC (MYC).",
+        "tags": ["oncology", "pathology"]
+      }
+    ]
+  }
+]
