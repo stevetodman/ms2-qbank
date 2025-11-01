@@ -44,16 +44,61 @@ describe('PracticeSessionContext', () => {
     window.localStorage.clear();
     const fetchMock = jest.fn();
     (global.fetch as unknown) = fetchMock;
-    fetchMock.mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: [sampleQuestion],
-            pagination: { total: 1, limit: 1, offset: 0, returned: 1 },
-          }),
-      })
-    );
+    fetchMock.mockImplementation((input?: RequestInfo, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input?.toString() ?? '';
+      if (url.endsWith('/filters')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              subjects: ['Pathology'],
+              systems: [],
+              statuses: ['Unused'],
+              difficulties: ['Medium'],
+              tags: ['demo'],
+            }),
+        });
+      }
+
+      if (url.endsWith('/search')) {
+        const body = init?.body ? JSON.parse(init.body.toString()) : {};
+        if (body.limit === 10 && body.offset === 0) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                data: [sampleQuestion],
+                pagination: { total: 2, limit: 10, offset: 0, returned: 1 },
+              }),
+          });
+        }
+        if (body.limit === 10 && body.offset === 1) {
+          const extraQuestion: QuestionPayload = {
+            ...sampleQuestion,
+            id: 'q2',
+            stem: 'Another preview stem',
+          };
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                data: [extraQuestion],
+                pagination: { total: 2, limit: 10, offset: 1, returned: 1 },
+              }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              data: [sampleQuestion],
+              pagination: { total: 1, limit: body.limit ?? 1, offset: body.offset ?? 0, returned: 1 },
+            }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call to ${url}`);
+    });
   });
 
   afterEach(() => {
@@ -70,6 +115,30 @@ describe('PracticeSessionContext', () => {
     const { result } = renderHook(() => usePracticeSession(), { wrapper });
 
     await waitFor(() => expect(result.current.filterOptions.subjects).toContain('Pathology'));
+  });
+
+  it('loads preview data in pages', async () => {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <PracticeSessionProvider>{children}</PracticeSessionProvider>
+    );
+
+    const { result } = renderHook(() => usePracticeSession(), { wrapper });
+
+    await waitFor(() => expect(result.current.filterOptions.tags).toContain('demo'));
+
+    await act(async () => {
+      await result.current.loadPreview(baseFilters);
+    });
+
+    await waitFor(() => expect(result.current.preview).toHaveLength(1));
+    expect(result.current.previewTotal).toBe(2);
+
+    await act(async () => {
+      await result.current.loadMorePreview();
+    });
+
+    await waitFor(() => expect(result.current.preview).toHaveLength(2));
+    expect(result.current.canLoadMorePreview).toBe(false);
   });
 
   it('creates a tutor mode session and reveals explanations after answering', async () => {

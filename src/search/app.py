@@ -79,6 +79,16 @@ class SearchResponse(BaseModel):
     pagination: Pagination
 
 
+class SearchFilterResponse(BaseModel):
+    """Response describing available search filter facets."""
+
+    subjects: List[str]
+    systems: List[str]
+    statuses: List[str]
+    difficulties: List[str]
+    tags: List[str]
+
+
 class UsageDistributionBucket(BaseModel):
     """Histogram bucket describing usage distribution."""
 
@@ -242,29 +252,30 @@ async def search(request: SearchRequest) -> SearchResponse:
     """Search the question dataset using a combination of filters."""
 
     index = _get_index()
-    matches = index.search(
+    window, total = index.search(
         query=request.query,
         tags=request.tags,
         metadata_filters=request.metadata,
-        limit=None,
+        limit=request.limit,
+        offset=request.offset,
     )
-
-    total = len(matches)
-    offset = request.offset
-    limit = request.limit
-
-    start = min(offset, total)
-    end = min(start + limit, total)
-    window = matches[start:end]
-
     pagination = Pagination(
         total=total,
-        limit=limit,
-        offset=start,
+        limit=request.limit,
+        offset=request.offset,
         returned=len(window),
     )
 
     return SearchResponse(data=window, pagination=pagination)
+
+
+@app.get("/search/filters", response_model=SearchFilterResponse)
+async def search_filters() -> SearchFilterResponse:
+    """Return distinct filter facets derived from the indexed questions."""
+
+    index = _get_index()
+    filters = index.filter_values()
+    return SearchFilterResponse(**filters)
 
 
 @app.get("/analytics/latest", response_model=AnalyticsResponse)

@@ -1,0 +1,693 @@
+{
+  "filters": {
+    "difficulties": [
+      "Easy",
+      "Medium"
+    ],
+    "statuses": [
+      "Unused"
+    ],
+    "subjects": [
+      "Microbiology",
+      "Pathology"
+    ],
+    "systems": [
+      "Cardiovascular",
+      "Respiratory"
+    ],
+    "tags": [
+      "high-yield",
+      "infection",
+      "pediatrics",
+      "vascular"
+    ]
+  },
+  "fingerprint": {
+    "question_ids": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "record_count": 2,
+    "version": 1
+  },
+  "metadata": {
+    "difficulty": {
+      "easy": [
+        "q_5e6f7a8b"
+      ],
+      "medium": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "keywords": {
+      "aso titers": [
+        "q_5e6f7a8b"
+      ],
+      "deep vein thrombosis": [
+        "q_1a2b3c4d"
+      ],
+      "post-streptococcal": [
+        "q_5e6f7a8b"
+      ],
+      "pulmonary embolism": [
+        "q_1a2b3c4d"
+      ],
+      "rheumatic fever": [
+        "q_5e6f7a8b"
+      ],
+      "risk factors": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "media": {
+      "ct angiogram demonstrating a pulmonary embolus": [
+        "q_1a2b3c4d"
+      ],
+      "https://example.com/images/pe_ct_scan.png": [
+        "q_1a2b3c4d"
+      ],
+      "image": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "references": {
+      "https://example.com/references/pe": [
+        "q_1a2b3c4d"
+      ],
+      "https://example.com/references/rheumatic-fever": [
+        "q_5e6f7a8b"
+      ],
+      "pulmonary embolism: clinical features": [
+        "q_1a2b3c4d"
+      ],
+      "rheumatic fever pathogenesis": [
+        "q_5e6f7a8b"
+      ],
+      "uworld cardiovascular module": [
+        "q_5e6f7a8b"
+      ],
+      "uworld respiratory module": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "status": {
+      "unused": [
+        "q_1a2b3c4d",
+        "q_5e6f7a8b"
+      ]
+    },
+    "subject": {
+      "microbiology": [
+        "q_5e6f7a8b"
+      ],
+      "pathology": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "system": {
+      "cardiovascular": [
+        "q_5e6f7a8b"
+      ],
+      "respiratory": [
+        "q_1a2b3c4d"
+      ]
+    },
+    "usage_count": {
+      "18": [
+        "q_1a2b3c4d"
+      ],
+      "7": [
+        "q_5e6f7a8b"
+      ]
+    }
+  },
+  "tags": {
+    "high-yield": [
+      "q_1a2b3c4d"
+    ],
+    "infection": [
+      "q_5e6f7a8b"
+    ],
+    "pediatrics": [
+      "q_5e6f7a8b"
+    ],
+    "vascular": [
+      "q_1a2b3c4d"
+    ]
+  },
+  "tokens": {
+    "18": [
+      "q_1a2b3c4d"
+    ],
+    "1a2b3c4d": [
+      "q_1a2b3c4d"
+    ],
+    "25": [
+      "q_1a2b3c4d"
+    ],
+    "5e6f7a8b": [
+      "q_5e6f7a8b"
+    ],
+    "6": [
+      "q_5e6f7a8b"
+    ],
+    "7": [
+      "q_5e6f7a8b"
+    ],
+    "a": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "absent": [
+      "q_1a2b3c4d"
+    ],
+    "acute": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "after": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "and": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "angiogram": [
+      "q_1a2b3c4d"
+    ],
+    "antistreptolysin": [
+      "q_5e6f7a8b"
+    ],
+    "are": [
+      "q_1a2b3c4d"
+    ],
+    "aso": [
+      "q_5e6f7a8b"
+    ],
+    "aso titers": [
+      "q_5e6f7a8b"
+    ],
+    "associated": [
+      "q_5e6f7a8b"
+    ],
+    "aureus": [
+      "q_5e6f7a8b"
+    ],
+    "b": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "bacterial": [
+      "q_5e6f7a8b"
+    ],
+    "but": [
+      "q_5e6f7a8b"
+    ],
+    "c": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "can": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "cardiovascular": [
+      "q_5e6f7a8b"
+    ],
+    "cause": [
+      "q_5e6f7a8b"
+    ],
+    "causes": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "causing": [
+      "q_1a2b3c4d"
+    ],
+    "changes": [
+      "q_1a2b3c4d"
+    ],
+    "chest": [
+      "q_1a2b3c4d"
+    ],
+    "circulation": [
+      "q_1a2b3c4d"
+    ],
+    "clinical": [
+      "q_1a2b3c4d"
+    ],
+    "com": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "commonly": [
+      "q_5e6f7a8b"
+    ],
+    "complications": [
+      "q_5e6f7a8b"
+    ],
+    "crushing": [
+      "q_1a2b3c4d"
+    ],
+    "ct": [
+      "q_1a2b3c4d"
+    ],
+    "ct angiogram demonstrating a pulmonary embolus": [
+      "q_1a2b3c4d"
+    ],
+    "d": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "deep": [
+      "q_1a2b3c4d"
+    ],
+    "deep vein thrombosis": [
+      "q_1a2b3c4d"
+    ],
+    "demonstrating": [
+      "q_1a2b3c4d"
+    ],
+    "described": [
+      "q_5e6f7a8b"
+    ],
+    "deviation": [
+      "q_1a2b3c4d"
+    ],
+    "diagnosis": [
+      "q_1a2b3c4d"
+    ],
+    "dyspnea": [
+      "q_1a2b3c4d"
+    ],
+    "e": [
+      "q_5e6f7a8b"
+    ],
+    "easy": [
+      "q_5e6f7a8b"
+    ],
+    "ekg": [
+      "q_1a2b3c4d"
+    ],
+    "elevated": [
+      "q_5e6f7a8b"
+    ],
+    "embolism": [
+      "q_1a2b3c4d"
+    ],
+    "embolize": [
+      "q_1a2b3c4d"
+    ],
+    "embolus": [
+      "q_1a2b3c4d"
+    ],
+    "endocarditis": [
+      "q_5e6f7a8b"
+    ],
+    "enterococcus": [
+      "q_5e6f7a8b"
+    ],
+    "example": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "factors": [
+      "q_1a2b3c4d"
+    ],
+    "faecalis": [
+      "q_5e6f7a8b"
+    ],
+    "features": [
+      "q_1a2b3c4d"
+    ],
+    "fever": [
+      "q_5e6f7a8b"
+    ],
+    "flight": [
+      "q_1a2b3c4d"
+    ],
+    "follow": [
+      "q_5e6f7a8b"
+    ],
+    "following": [
+      "q_1a2b3c4d"
+    ],
+    "forward": [
+      "q_1a2b3c4d"
+    ],
+    "girl": [
+      "q_5e6f7a8b"
+    ],
+    "glomerulonephritis": [
+      "q_5e6f7a8b"
+    ],
+    "has": [
+      "q_5e6f7a8b"
+    ],
+    "haul": [
+      "q_1a2b3c4d"
+    ],
+    "here": [
+      "q_1a2b3c4d"
+    ],
+    "high-yield": [
+      "q_1a2b3c4d"
+    ],
+    "https": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "https://example.com/images/pe_ct_scan.png": [
+      "q_1a2b3c4d"
+    ],
+    "https://example.com/references/pe": [
+      "q_1a2b3c4d"
+    ],
+    "https://example.com/references/rheumatic-fever": [
+      "q_5e6f7a8b"
+    ],
+    "hyperresonance": [
+      "q_1a2b3c4d"
+    ],
+    "image": [
+      "q_1a2b3c4d"
+    ],
+    "images": [
+      "q_1a2b3c4d"
+    ],
+    "immobilization": [
+      "q_1a2b3c4d"
+    ],
+    "improves": [
+      "q_1a2b3c4d"
+    ],
+    "increases": [
+      "q_1a2b3c4d"
+    ],
+    "infarction": [
+      "q_1a2b3c4d"
+    ],
+    "infection": [
+      "q_5e6f7a8b"
+    ],
+    "infections": [
+      "q_5e6f7a8b"
+    ],
+    "is": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "laboratory": [
+      "q_5e6f7a8b"
+    ],
+    "lacks": [
+      "q_5e6f7a8b"
+    ],
+    "leaning": [
+      "q_1a2b3c4d"
+    ],
+    "like": [
+      "q_5e6f7a8b"
+    ],
+    "likely": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "long": [
+      "q_1a2b3c4d"
+    ],
+    "major": [
+      "q_5e6f7a8b"
+    ],
+    "man": [
+      "q_1a2b3c4d"
+    ],
+    "matches": [
+      "q_1a2b3c4d"
+    ],
+    "media": [
+      "q_5e6f7a8b"
+    ],
+    "medium": [
+      "q_1a2b3c4d"
+    ],
+    "mi": [
+      "q_1a2b3c4d"
+    ],
+    "microbiology": [
+      "q_5e6f7a8b"
+    ],
+    "module": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "most": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "murmur": [
+      "q_5e6f7a8b"
+    ],
+    "myocardial": [
+      "q_1a2b3c4d"
+    ],
+    "new": [
+      "q_5e6f7a8b"
+    ],
+    "nosocomial": [
+      "q_5e6f7a8b"
+    ],
+    "not": [
+      "q_5e6f7a8b"
+    ],
+    "o": [
+      "q_5e6f7a8b"
+    ],
+    "of": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "often": [
+      "q_1a2b3c4d"
+    ],
+    "old": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "organism": [
+      "q_5e6f7a8b"
+    ],
+    "otitis": [
+      "q_5e6f7a8b"
+    ],
+    "pain": [
+      "q_1a2b3c4d"
+    ],
+    "pathogenesis": [
+      "q_5e6f7a8b"
+    ],
+    "pathology": [
+      "q_1a2b3c4d"
+    ],
+    "patient's": [
+      "q_1a2b3c4d"
+    ],
+    "pe": [
+      "q_1a2b3c4d"
+    ],
+    "pediatrics": [
+      "q_5e6f7a8b"
+    ],
+    "pericarditis": [
+      "q_1a2b3c4d"
+    ],
+    "petechiae": [
+      "q_5e6f7a8b"
+    ],
+    "pharyngitis": [
+      "q_5e6f7a8b"
+    ],
+    "pleuritic": [
+      "q_1a2b3c4d"
+    ],
+    "pneumonia": [
+      "q_5e6f7a8b"
+    ],
+    "pneumoniae": [
+      "q_5e6f7a8b"
+    ],
+    "pneumothorax": [
+      "q_1a2b3c4d"
+    ],
+    "png": [
+      "q_1a2b3c4d"
+    ],
+    "post": [
+      "q_5e6f7a8b"
+    ],
+    "post-streptococcal": [
+      "q_5e6f7a8b"
+    ],
+    "presents": [
+      "q_1a2b3c4d"
+    ],
+    "profile": [
+      "q_5e6f7a8b"
+    ],
+    "prolonged": [
+      "q_1a2b3c4d"
+    ],
+    "pulmonary": [
+      "q_1a2b3c4d"
+    ],
+    "pulmonary embolism": [
+      "q_1a2b3c4d"
+    ],
+    "pulmonary embolism: clinical features": [
+      "q_1a2b3c4d"
+    ],
+    "pyogenes": [
+      "q_5e6f7a8b"
+    ],
+    "q": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "recent": [
+      "q_5e6f7a8b"
+    ],
+    "references": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "respiratory": [
+      "q_1a2b3c4d"
+    ],
+    "responsible": [
+      "q_5e6f7a8b"
+    ],
+    "reveals": [
+      "q_5e6f7a8b"
+    ],
+    "rheumatic": [
+      "q_5e6f7a8b"
+    ],
+    "rheumatic fever": [
+      "q_5e6f7a8b"
+    ],
+    "rheumatic fever pathogenesis": [
+      "q_5e6f7a8b"
+    ],
+    "risk": [
+      "q_1a2b3c4d"
+    ],
+    "risk factors": [
+      "q_1a2b3c4d"
+    ],
+    "s": [
+      "q_5e6f7a8b"
+    ],
+    "scan": [
+      "q_1a2b3c4d"
+    ],
+    "sequelae": [
+      "q_5e6f7a8b"
+    ],
+    "serologic": [
+      "q_5e6f7a8b"
+    ],
+    "sharp": [
+      "q_1a2b3c4d"
+    ],
+    "sore": [
+      "q_5e6f7a8b"
+    ],
+    "staphylococcus": [
+      "q_5e6f7a8b"
+    ],
+    "streptococcal": [
+      "q_5e6f7a8b"
+    ],
+    "streptococcus": [
+      "q_5e6f7a8b"
+    ],
+    "substernal": [
+      "q_1a2b3c4d"
+    ],
+    "sudden": [
+      "q_1a2b3c4d"
+    ],
+    "tension": [
+      "q_1a2b3c4d"
+    ],
+    "testing": [
+      "q_5e6f7a8b"
+    ],
+    "that": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "the": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "throat": [
+      "q_5e6f7a8b"
+    ],
+    "thrombosis": [
+      "q_1a2b3c4d"
+    ],
+    "titers": [
+      "q_5e6f7a8b"
+    ],
+    "to": [
+      "q_1a2b3c4d"
+    ],
+    "tracheal": [
+      "q_1a2b3c4d"
+    ],
+    "trigger": [
+      "q_5e6f7a8b"
+    ],
+    "typically": [
+      "q_1a2b3c4d"
+    ],
+    "unused": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "uworld": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "uworld cardiovascular module": [
+      "q_5e6f7a8b"
+    ],
+    "uworld respiratory module": [
+      "q_1a2b3c4d"
+    ],
+    "vascular": [
+      "q_1a2b3c4d"
+    ],
+    "vein": [
+      "q_1a2b3c4d"
+    ],
+    "when": [
+      "q_1a2b3c4d"
+    ],
+    "which": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "with": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ],
+    "year": [
+      "q_1a2b3c4d",
+      "q_5e6f7a8b"
+    ]
+  },
+  "version": 1
+}

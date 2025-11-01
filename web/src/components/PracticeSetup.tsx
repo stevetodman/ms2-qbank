@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePracticeSession } from '../context/PracticeSessionContext.tsx';
 import type { PracticeFilters, PracticeMode } from '../types/practice.ts';
@@ -24,7 +24,20 @@ const MODE_HELP: Record<PracticeMode, string> = {
 
 export const PracticeSetup = () => {
   const navigate = useNavigate();
-  const { filterOptions, filtersLoading, startSession, isLoading, error } = usePracticeSession();
+  const {
+    filterOptions,
+    filtersLoading,
+    startSession,
+    isLoading,
+    error,
+    preview,
+    previewTotal,
+    previewLoading,
+    previewError,
+    canLoadMorePreview,
+    loadPreview,
+    loadMorePreview,
+  } = usePracticeSession();
   const [mode, setMode] = useState<PracticeMode>('tutor');
   const [filters, setFilters] = useState<PracticeFilters>(DEFAULT_FILTERS);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -46,6 +59,24 @@ export const PracticeSetup = () => {
 
   const modeDescription = useMemo(() => MODE_HELP[mode], [mode]);
 
+  const previewFilters = useMemo<PracticeFilters>(
+    () => ({
+      ...filters,
+      tags: selectedTags,
+    }),
+    [filters, selectedTags]
+  );
+
+  useEffect(() => {
+    if (filtersLoading) {
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void loadPreview(previewFilters);
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [filtersLoading, loadPreview, previewFilters]);
+
   const toggleTag = (tag: string) => {
     setSelectedTags((current) => {
       if (current.includes(tag)) {
@@ -62,6 +93,14 @@ export const PracticeSetup = () => {
   const resetFilters = () => {
     setFilters({ ...DEFAULT_FILTERS });
     setSelectedTags([]);
+  };
+
+  const summariseStem = (stem: string) => {
+    const trimmed = stem.trim();
+    if (trimmed.length <= 160) {
+      return trimmed;
+    }
+    return `${trimmed.slice(0, 157)}…`;
   };
 
   return (
@@ -220,6 +259,38 @@ export const PracticeSetup = () => {
                 )}
               </div>
             )}
+            <div className="stack" style={{ marginTop: '0.75rem' }}>
+              <strong>Matching questions</strong>
+              {previewLoading && <p>Loading preview…</p>}
+              {!previewLoading && previewTotal === 0 && !previewError && <p>No questions match the current filters.</p>}
+              {previewError && <p style={{ color: '#dc2626' }}>{previewError}</p>}
+              {preview.length > 0 && (
+                <ul className="stack" style={{ listStyle: 'disc', paddingLeft: '1.25rem', gap: '0.5rem' }}>
+                  {preview.map((question) => (
+                    <li key={question.id}>
+                      <span>
+                        <strong>{question.metadata?.subject ?? 'General'}</strong> · {summariseStem(question.stem)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {previewTotal > 0 && !previewLoading && !previewError && (
+                <p style={{ fontSize: '0.9rem', color: '#475569' }}>
+                  Showing {preview.length} of {previewTotal} matching question{previewTotal === 1 ? '' : 's'}.
+                </p>
+              )}
+              {canLoadMorePreview && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void loadMorePreview()}
+                  disabled={previewLoading}
+                >
+                  {previewLoading ? 'Loading…' : 'Load more examples'}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </fieldset>

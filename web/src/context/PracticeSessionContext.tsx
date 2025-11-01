@@ -5,9 +5,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { fetchFilterPreview, searchQuestions } from '../api/search.ts';
+import {
+  fetchSearchFilters,
+  searchQuestions,
+} from '../api/search.ts';
 import type {
   PracticeFilters,
   PracticeMode,
@@ -32,6 +36,13 @@ interface PracticeSessionContextValue {
   error: string | null;
   filterOptions: FilterOptions;
   filtersLoading: boolean;
+  preview: QuestionPayload[];
+  previewTotal: number;
+  previewError: string | null;
+  previewLoading: boolean;
+  canLoadMorePreview: boolean;
+  loadPreview: (filters: PracticeFilters, append?: boolean) => Promise<void>;
+  loadMorePreview: () => Promise<void>;
   startSession: (mode: PracticeMode, filters: PracticeFilters) => Promise<void>;
   selectAnswer: (questionId: string, choice: string) => void;
   goToQuestion: (index: number) => void;
@@ -52,37 +63,12 @@ const defaultFilterOptions: FilterOptions = {
   tags: [],
 };
 
-function extractFilterOptions(questions: QuestionPayload[]): FilterOptions {
-  const subjects = new Set<string>();
-  const systems = new Set<string>();
-  const statuses = new Set<string>();
-  const difficulties = new Set<string>();
-  const tags = new Set<string>();
+const PREVIEW_PAGE_SIZE = 10;
 
-  questions.forEach((question) => {
-    if (question.metadata?.subject) {
-      subjects.add(question.metadata.subject);
-    }
-    if (question.metadata?.system) {
-      systems.add(question.metadata.system);
-    }
-    if (question.metadata?.status) {
-      statuses.add(question.metadata.status);
-    }
-    if (question.metadata?.difficulty) {
-      difficulties.add(question.metadata.difficulty);
-    }
-    question.tags?.forEach((tag) => tags.add(tag));
-  });
-
-  const toSortedArray = (value: Set<string>) => Array.from(value).sort((a, b) => a.localeCompare(b));
-
+function cloneFilters(filters: PracticeFilters): PracticeFilters {
   return {
-    subjects: toSortedArray(subjects),
-    systems: toSortedArray(systems),
-    statuses: toSortedArray(statuses),
-    difficulties: toSortedArray(difficulties),
-    tags: toSortedArray(tags),
+    ...filters,
+    tags: [...filters.tags],
   };
 }
 
@@ -215,19 +201,30 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
   const [error, setError] = useState<string | null>(null);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>(defaultFilterOptions);
   const [filtersLoading, setFiltersLoading] = useState(false);
+  const [preview, setPreview] = useState<QuestionPayload[]>([]);
+  const [previewTotal, setPreviewTotal] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewCursor, setPreviewCursor] = useState(0);
+  const previewFiltersRef = useRef<PracticeFilters | null>(null);
+
+  const canLoadMorePreview = useMemo(() => previewCursor < previewTotal, [previewCursor, previewTotal]);
 
   useEffect(() => {
     let isActive = true;
     async function loadFilters() {
       setFiltersLoading(true);
       try {
-        const preview = await fetchFilterPreview();
+        const filters = await fetchSearchFilters();
         if (!isActive) {
           return;
         }
-        setFilterOptions(extractFilterOptions(preview));
+        setFilterOptions(filters);
       } catch (err) {
         console.error('Failed to preload filter metadata', err);
+        if (isActive) {
+          setFilterOptions(defaultFilterOptions);
+        }
       } finally {
         if (isActive) {
           setFiltersLoading(false);
@@ -239,6 +236,52 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
       isActive = false;
     };
   }, []);
+
+  const loadPreview = useCallback(
+    async (filters: PracticeFilters, append = false) => {
+      const baseFilters = append && previewFiltersRef.current ? previewFiltersRef.current : cloneFilters(filters);
+      if (!append || !previewFiltersRef.current) {
+        previewFiltersRef.current = cloneFilters(baseFilters);
+      }
+      if (!append) {
+        setPreview([]);
+        setPreviewTotal(0);
+        setPreviewCursor(0);
+      }
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const offset = append ? previewCursor : 0;
+        const response = await searchQuestions(baseFilters, {
+          limit: PREVIEW_PAGE_SIZE,
+          offset,
+        });
+        const { data, pagination } = response;
+        setPreview((current) => (append ? [...current, ...data] : data));
+        setPreviewTotal(pagination.total);
+        setPreviewCursor(pagination.offset + pagination.returned);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to preview questions';
+        setPreviewError(message);
+        if (!append) {
+          setPreview([]);
+          setPreviewTotal(0);
+          setPreviewCursor(0);
+        }
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [previewCursor]
+  );
+
+  const loadMorePreview = useCallback(async () => {
+    const stored = previewFiltersRef.current;
+    if (!stored) {
+      return;
+    }
+    await loadPreview(stored, true);
+  }, [loadPreview]);
 
   useEffect(() => {
     if (!session || session.totalDurationSeconds === null || session.completed) {
@@ -268,8 +311,17 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
       setIsLoading(true);
       setError(null);
       try {
-        const questions = await searchQuestions(filters);
-        const ordered = filters.randomizeOrder ? shuffle(questions) : questions;
+        const response = await searchQuestions(filters, { limit: filters.questionCount, offset: 0 });
+        const { data, pagination } = response;
+        if (pagination.total === 0) {
+          throw new Error('No questions match the selected filters.');
+        }
+        if (data.length < filters.questionCount) {
+          throw new Error(
+            `Only ${pagination.total} question${pagination.total === 1 ? '' : 's'} match the selected filters.`
+          );
+        }
+        const ordered = filters.randomizeOrder ? shuffle(data) : data;
         const reveals = initialiseReveals(mode, filters, ordered);
         const totalDuration = deriveTotalDuration(mode, filters, ordered.length);
         const startedAt = Date.now();
@@ -388,6 +440,13 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
       error,
       filterOptions,
       filtersLoading,
+      preview,
+      previewTotal,
+      previewError,
+      previewLoading,
+      canLoadMorePreview,
+      loadPreview,
+      loadMorePreview,
       startSession,
       selectAnswer,
       goToQuestion,
@@ -400,8 +459,15 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
     error,
     filterOptions,
     filtersLoading,
+    loadMorePreview,
+    loadPreview,
     goToQuestion,
     isLoading,
+    preview,
+    previewError,
+    previewLoading,
+    previewTotal,
+    canLoadMorePreview,
     revealExplanation,
     resetSession,
     selectAnswer,
