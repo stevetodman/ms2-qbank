@@ -18,6 +18,14 @@ def test_compute_question_metrics(sample_questions):
     assert usage.usage_distribution == {7: 1, 18: 1}
     assert usage.average_usage == 12.5
 
+    coverage = {item.label: item for item in metrics.coverage}
+    assert coverage["Explanations drafted"].completed == 2
+    assert coverage["Answer rationales captured"].completed == 2
+    assert coverage["Media attachments added"].completed == 1
+    assert coverage["Media attachments added"].missing == 1
+    assert coverage["Media alt text provided"].completed == 1
+    assert coverage["Media alt text provided"].missing == 0
+
 
 def test_compute_question_metrics_handles_missing_metadata():
     sample = [
@@ -40,3 +48,10 @@ def test_compute_question_metrics_handles_missing_metadata():
     assert usage.maximum_usage == 9
     assert usage.usage_distribution == {0: 1, 9: 1}
     assert usage.average_usage == 4.5
+
+    coverage = {item.label: item for item in metrics.coverage}
+    assert coverage["Usage tracking configured"].completed == 2
+    assert coverage["Media attachments added"].completed == 0
+    assert coverage["Media attachments added"].missing == 4
+    assert coverage["Media alt text provided"].completed == 0
+    assert coverage["Media alt text provided"].missing == 0

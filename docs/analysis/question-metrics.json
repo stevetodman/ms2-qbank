@@ -17,5 +17,63 @@
       "7": 1,
       "18": 1
     }
-  }
+  },
+  "coverage": [
+    {
+      "label": "Explanations drafted",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    },
+    {
+      "label": "Answer rationales captured",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    },
+    {
+      "label": "Keywords assigned",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    },
+    {
+      "label": "Reference links added",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    },
+    {
+      "label": "Media attachments added",
+      "completed": 1,
+      "missing": 1,
+      "total": 2,
+      "coverage": 0.5
+    },
+    {
+      "label": "Media alt text provided",
+      "completed": 1,
+      "missing": 0,
+      "total": 1,
+      "coverage": 1.0
+    },
+    {
+      "label": "Usage tracking configured",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    },
+    {
+      "label": "Tags applied",
+      "completed": 2,
+      "missing": 0,
+      "total": 2,
+      "coverage": 1.0
+    }
+  ]
 }

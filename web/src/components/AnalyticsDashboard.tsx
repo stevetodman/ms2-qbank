@@ -26,12 +26,44 @@ function renderDistributionRows(distribution: Record<string, number>) {
   ));
 }
 
+function renderCoverageRows(coverage: AnalyticsSnapshot['metrics']['coverage']) {
+  if (coverage.length === 0) {
+    return (
+      <tr>
+        <td colSpan={4}>No coverage data available</td>
+      </tr>
+    );
+  }
+
+  return coverage.map((metric) => (
+    <tr key={metric.label}>
+      <th scope="row">{metric.label}</th>
+      <td>{formatCount(metric.completed)}</td>
+      <td>{formatCount(metric.missing)}</td>
+      <td>{Math.round(metric.coverage * 100)}%</td>
+    </tr>
+  ));
+}
+
 export function AnalyticsDashboard({ snapshot }: AnalyticsDashboardProps) {
   const { metrics } = snapshot;
   const usageSummary = metrics.usageSummary;
 
   return (
     <div className="stack" aria-live="polite">
+      <table className="data-table">
+        <caption>Contributor coverage</caption>
+        <thead>
+          <tr>
+            <th scope="col">Work item</th>
+            <th scope="col">Completed</th>
+            <th scope="col">Missing</th>
+            <th scope="col">Coverage</th>
+          </tr>
+        </thead>
+        <tbody>{renderCoverageRows(metrics.coverage)}</tbody>
+      </table>
+
       <table className="data-table">
         <caption>Difficulty distribution</caption>
         <thead>

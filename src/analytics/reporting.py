@@ -54,6 +54,22 @@ def render_markdown(metrics: QuestionMetrics) -> str:
         f"- **Total usage events:** {usage.total_usage}",
         f"- **Average usage per tracked question:** {usage.average_usage:.2f}",
         "",
+        "## Content Coverage",
+        _render_table(
+            ["Work item", "Completed", "Missing", "Coverage"],
+            (
+                (
+                    item.label,
+                    item.completed,
+                    item.missing,
+                    f"{(item.completed / (item.completed + item.missing) * 100):.0f}%"
+                    if (item.completed + item.missing)
+                    else "0%",
+                )
+                for item in metrics.coverage
+            ),
+        ),
+        "",
         "## Difficulty Distribution",
         _render_table(["Difficulty", "Questions"], metrics.difficulty_distribution.items()),
         "",

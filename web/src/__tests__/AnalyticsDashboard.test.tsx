@@ -19,6 +19,29 @@ describe('AnalyticsDashboard', () => {
         Draft: 30,
         Archived: 10,
       },
+      coverage: [
+        {
+          label: 'Explanations drafted',
+          completed: 120,
+          missing: 0,
+          total: 120,
+          coverage: 1,
+        },
+        {
+          label: 'Media attachments added',
+          completed: 60,
+          missing: 60,
+          total: 120,
+          coverage: 0.5,
+        },
+        {
+          label: 'Media alt text provided',
+          completed: 60,
+          missing: 0,
+          total: 60,
+          coverage: 1,
+        },
+      ],
       usageSummary: {
         trackedQuestions: 100,
         totalUsage: 250,
@@ -44,6 +67,19 @@ describe('AnalyticsDashboard', () => {
     const reviewTable = screen.getByRole('table', { name: /review status distribution/i });
     expect(within(reviewTable).getByRole('row', { name: /approved/i })).toBeInTheDocument();
     expect(within(reviewTable).getByText('80')).toBeInTheDocument();
+
+    const coverageTable = screen.getByRole('table', { name: /contributor coverage/i });
+    const mediaRow = within(coverageTable).getByRole('row', { name: /media attachments added/i });
+    const mediaCells = within(mediaRow)
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent?.trim());
+    expect(mediaCells).toEqual(['60', '60', '50%']);
+
+    const altTextRow = within(coverageTable).getByRole('row', { name: /media alt text provided/i });
+    const altTextCells = within(altTextRow)
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent?.trim());
+    expect(altTextCells).toEqual(['60', '0', '100%']);
   });
 
   it('renders usage metrics and distribution', () => {

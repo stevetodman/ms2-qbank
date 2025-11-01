@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from statistics import mean
-from typing import Any, Iterable, Mapping, MutableMapping, Optional
+from typing import Any, Callable, Iterable, Mapping, MutableMapping, Optional
 
 Difficulty = str
 Status = str
@@ -13,6 +13,10 @@ UsageCount = int
 
 _DIFFICULTY_ORDER = ("Easy", "Medium", "Hard")
 _STATUS_ORDER = ("Unused", "Marked", "Incorrect", "Correct", "Omitted")
+
+
+def _normalise_string(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
 
 
 def _normalise_int(value: Any) -> Optional[int]:
@@ -62,6 +66,7 @@ class QuestionMetrics:
     difficulty_distribution: MutableMapping[Difficulty, int]
     review_status_distribution: MutableMapping[Status, int]
     usage_summary: UsageSummary
+    coverage: Iterable["CoverageMetric"]
 
     def to_dict(self) -> MutableMapping[str, Any]:
         return {
@@ -69,7 +74,150 @@ class QuestionMetrics:
             "difficulty_distribution": dict(self.difficulty_distribution),
             "review_status_distribution": dict(self.review_status_distribution),
             "usage_summary": self.usage_summary.to_dict(),
+            "coverage": [metric.to_dict() for metric in self.coverage],
         }
+
+
+@dataclass(frozen=True)
+class CoverageMetric:
+    """Progress indicator describing completion of contributor tasks."""
+
+    label: str
+    completed: int
+    missing: int
+
+    def to_dict(self) -> MutableMapping[str, Any]:
+        total = self.completed + self.missing
+        coverage = (self.completed / total) if total else 1.0
+        return {
+            "label": self.label,
+            "completed": self.completed,
+            "missing": self.missing,
+            "total": total,
+            "coverage": coverage,
+        }
+
+
+def _has_summary(question: Mapping[str, Any]) -> bool:
+    explanation = question.get("explanation")
+    if not isinstance(explanation, Mapping):
+        return False
+    summary = explanation.get("summary")
+    return bool(_normalise_string(summary))
+
+
+def _has_rationales(question: Mapping[str, Any]) -> bool:
+    explanation = question.get("explanation")
+    if not isinstance(explanation, Mapping):
+        return False
+    rationales = explanation.get("rationales")
+    if not isinstance(rationales, Iterable):
+        return False
+    return any(
+        isinstance(entry, Mapping)
+        and isinstance(entry.get("choice"), str)
+        and bool(_normalise_string(entry.get("text")))
+        for entry in rationales
+    )
+
+
+def _has_keywords(question: Mapping[str, Any]) -> bool:
+    metadata = question.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return False
+    keywords = metadata.get("keywords")
+    if not isinstance(keywords, Iterable):
+        return False
+    return any(bool(_normalise_string(keyword)) for keyword in keywords)
+
+
+def _has_references(question: Mapping[str, Any]) -> bool:
+    metadata = question.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return False
+    references = metadata.get("references")
+    if not isinstance(references, Iterable):
+        return False
+    return any(
+        isinstance(reference, Mapping)
+        and bool(_normalise_string(reference.get("title")))
+        and bool(_normalise_string(reference.get("source")))
+        for reference in references
+    )
+
+
+def _has_media(question: Mapping[str, Any]) -> bool:
+    metadata = question.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return False
+    media = metadata.get("media")
+    if not isinstance(media, Iterable):
+        return False
+    return any(
+        isinstance(asset, Mapping)
+        and bool(_normalise_string(asset.get("type")))
+        and bool(_normalise_string(asset.get("uri")))
+        for asset in media
+    )
+
+
+def _media_has_alt_text(question: Mapping[str, Any]) -> Optional[bool]:
+    metadata = question.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return None
+
+    media = metadata.get("media")
+    if not isinstance(media, Iterable):
+        return None
+
+    has_assets = False
+    for asset in media:
+        if not isinstance(asset, Mapping):
+            continue
+        asset_type = _normalise_string(asset.get("type"))
+        asset_uri = _normalise_string(asset.get("uri"))
+        if not asset_type or not asset_uri:
+            continue
+        has_assets = True
+        alt_text = _normalise_string(asset.get("alt_text"))
+        if not alt_text:
+            return False
+
+    if not has_assets:
+        return None
+
+    return True
+
+
+def _has_usage_count(question: Mapping[str, Any]) -> bool:
+    metadata = question.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return False
+    usage_value = metadata.get("usage_count")
+    normalised = _normalise_int(usage_value)
+    return normalised is not None and normalised >= 0
+
+
+def _has_tags(question: Mapping[str, Any]) -> bool:
+    tags = question.get("tags")
+    if not isinstance(tags, Iterable):
+        return False
+    return any(bool(_normalise_string(tag)) for tag in tags)
+
+
+_COVERAGE_DEFINITIONS: tuple[
+    tuple[str, Callable[[Mapping[str, Any]], Optional[bool]]],
+    ...
+] = (
+    ("Explanations drafted", _has_summary),
+    ("Answer rationales captured", _has_rationales),
+    ("Keywords assigned", _has_keywords),
+    ("Reference links added", _has_references),
+    ("Media attachments added", _has_media),
+    ("Media alt text provided", _media_has_alt_text),
+    ("Usage tracking configured", _has_usage_count),
+    ("Tags applied", _has_tags),
+)
 
 
 def compute_question_metrics(questions: Iterable[Mapping[str, Any]]) -> QuestionMetrics:
@@ -84,11 +232,23 @@ def compute_question_metrics(questions: Iterable[Mapping[str, Any]]) -> Question
     status_counter: Counter[Status] = Counter()
     usage_counter: Counter[UsageCount] = Counter()
     usage_values: list[int] = []
+    coverage_tracker: dict[str, dict[str, int]] = {
+        label: {"completed": 0, "missing": 0} for label, _ in _COVERAGE_DEFINITIONS
+    }
 
     total_questions = 0
 
     for question in questions:
         total_questions += 1
+
+        for label, predicate in _COVERAGE_DEFINITIONS:
+            bucket = coverage_tracker[label]
+            result = predicate(question)
+            if result is True:
+                bucket["completed"] += 1
+            elif result is False:
+                bucket["missing"] += 1
+
         metadata = question.get("metadata")
         if not isinstance(metadata, Mapping):
             continue
@@ -111,12 +271,17 @@ def compute_question_metrics(questions: Iterable[Mapping[str, Any]]) -> Question
 
     ordered_difficulty = _order_counter(difficulty_counter, _DIFFICULTY_ORDER)
     ordered_status = _order_counter(status_counter, _STATUS_ORDER)
+    coverage_metrics = [
+        CoverageMetric(label=label, completed=bucket["completed"], missing=bucket["missing"])
+        for label, bucket in coverage_tracker.items()
+    ]
 
     return QuestionMetrics(
         total_questions=total_questions,
         difficulty_distribution=ordered_difficulty,
         review_status_distribution=ordered_status,
         usage_summary=usage_summary,
+        coverage=coverage_metrics,
     )
 
 

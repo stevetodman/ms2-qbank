@@ -18,6 +18,22 @@ describe('HomeRoute analytics integration', () => {
         total_questions: 100,
         difficulty_distribution: { Easy: 40, Medium: 40, Hard: 20 },
         review_status_distribution: { Approved: 80, Draft: 15, Archived: 5 },
+        coverage: [
+          {
+            label: 'Explanations drafted',
+            completed: 100,
+            missing: 0,
+            total: 100,
+            coverage: 1,
+          },
+          {
+            label: 'Media alt text provided',
+            completed: 80,
+            missing: 0,
+            total: 80,
+            coverage: 1,
+          },
+        ],
         usage_summary: {
           tracked_questions: 90,
           total_usage: 200,
@@ -40,6 +56,29 @@ describe('HomeRoute analytics integration', () => {
         total_questions: 105,
         difficulty_distribution: { Easy: 35, Medium: 45, Expert: 25 },
         review_status_distribution: { Approved: 70, Draft: 25, Archived: 10 },
+        coverage: [
+          {
+            label: 'Explanations drafted',
+            completed: 105,
+            missing: 0,
+            total: 105,
+            coverage: 1,
+          },
+          {
+            label: 'Media attachments added',
+            completed: 60,
+            missing: 45,
+            total: 105,
+            coverage: 0.57,
+          },
+          {
+            label: 'Media alt text provided',
+            completed: 45,
+            missing: 15,
+            total: 60,
+            coverage: 0.75,
+          },
+        ],
         usage_summary: {
           tracked_questions: 95,
           total_usage: 240,
@@ -54,20 +93,29 @@ describe('HomeRoute analytics integration', () => {
       },
     };
 
-    const fetchSpy = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(firstResponse), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(secondResponse), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
+    const analyticsResponses = [firstResponse, secondResponse];
+
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/analytics/analytics/latest') {
+        const payload = analyticsResponses.shift() ?? secondResponse;
+        return Promise.resolve(
+          new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      if (url === '/api/planner/plans') {
+        return Promise.resolve(
+          new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      return Promise.reject(new Error(`Unexpected fetch for ${url}`));
+    });
 
     render(
       <MemoryRouter>
@@ -88,15 +136,33 @@ describe('HomeRoute analytics integration', () => {
       await user.click(refreshButton);
     });
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      const analyticsCalls = fetchSpy.mock.calls.filter(([request]) => {
+        const url = typeof request === 'string' ? request : request.toString();
+        return url === '/api/analytics/analytics/latest';
+      });
+      expect(analyticsCalls).toHaveLength(2);
+    });
     await waitFor(() => expect(screen.getByRole('row', { name: /expert/i })).toBeInTheDocument());
     expect(await screen.findByText(/stale snapshot/i)).toBeInTheDocument();
   });
 
   it('shows an error message when analytics fail to load', async () => {
-    const fetchSpy = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response('error', { status: 500 }));
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/analytics/analytics/latest') {
+        return Promise.resolve(new Response('error', { status: 500 }));
+      }
+      if (url === '/api/planner/plans') {
+        return Promise.resolve(
+          new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      return Promise.reject(new Error(`Unexpected fetch for ${url}`));
+    });
 
     render(
       <MemoryRouter>
@@ -104,9 +170,19 @@ describe('HomeRoute analytics integration', () => {
       </MemoryRouter>
     );
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Failed to load analytics: Analytics request failed with status 500');
+    const alerts = await screen.findAllByRole('alert');
+    const analyticsAlert = alerts.find((element) =>
+      element.textContent?.includes('Failed to load analytics:')
+    );
+    expect(analyticsAlert).toBeDefined();
+    expect(analyticsAlert).toHaveTextContent(
+      'Failed to load analytics: Analytics request failed with status 500'
+    );
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const analyticsCalls = fetchSpy.mock.calls.filter(([request]) => {
+      const url = typeof request === 'string' ? request : request.toString();
+      return url === '/api/analytics/analytics/latest';
+    });
+    expect(analyticsCalls).toHaveLength(1);
   });
 });

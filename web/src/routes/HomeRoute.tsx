@@ -104,6 +104,9 @@ export const HomeRoute = () => {
           <Link className="secondary-button" to="/notes">
             Open learner notebook
           </Link>
+          <Link className="secondary-button" to="/contributors">
+            View contributor dashboard
+          </Link>
         </footer>
       </section>
 

@@ -16,11 +16,20 @@ interface RawAnalyticsUsageSummary {
   usage_distribution?: RawUsageDistributionBucket[];
 }
 
+interface RawCoverageMetric {
+  label?: string;
+  completed?: number;
+  missing?: number;
+  total?: number;
+  coverage?: number;
+}
+
 interface RawAnalyticsMetrics {
   total_questions?: number;
   difficulty_distribution?: Record<string, number>;
   review_status_distribution?: Record<string, number>;
   usage_summary?: RawAnalyticsUsageSummary;
+  coverage?: RawCoverageMetric[] | Record<string, RawCoverageMetric>;
 }
 
 interface RawAnalyticsArtifact {
@@ -49,11 +58,20 @@ export interface AnalyticsUsageSummary {
   usageDistribution: AnalyticsUsageBucket[];
 }
 
+export interface AnalyticsCoverageMetric {
+  label: string;
+  completed: number;
+  missing: number;
+  total: number;
+  coverage: number;
+}
+
 export interface AnalyticsMetrics {
   totalQuestions: number;
   difficultyDistribution: Record<string, number>;
   reviewStatusDistribution: Record<string, number>;
   usageSummary: AnalyticsUsageSummary;
+  coverage: AnalyticsCoverageMetric[];
 }
 
 export interface AnalyticsArtifact {
@@ -95,12 +113,51 @@ function normaliseUsageSummary(raw: RawAnalyticsUsageSummary | undefined): Analy
   };
 }
 
+function normaliseCoverage(
+  raw: RawAnalyticsMetrics['coverage']
+): AnalyticsCoverageMetric[] {
+  const entries: RawCoverageMetric[] = [];
+  if (Array.isArray(raw)) {
+    entries.push(
+      ...raw.filter((item): item is RawCoverageMetric => typeof item === 'object' && item !== null)
+    );
+  } else if (raw && typeof raw === 'object') {
+    entries.push(
+      ...Object.values(raw).filter(
+        (item): item is RawCoverageMetric => typeof item === 'object' && item !== null
+      )
+    );
+  }
+
+  return entries
+    .map((entry) => {
+      const completed = typeof entry.completed === 'number' && entry.completed >= 0 ? entry.completed : 0;
+      const missing = typeof entry.missing === 'number' && entry.missing >= 0 ? entry.missing : 0;
+      const total = typeof entry.total === 'number' && entry.total >= 0 ? entry.total : completed + missing;
+      const coverageValue =
+        typeof entry.coverage === 'number' && entry.coverage >= 0 && entry.coverage <= 1
+          ? entry.coverage
+          : total > 0
+            ? completed / total
+            : 0;
+      return {
+        label: typeof entry.label === 'string' ? entry.label : 'Unknown',
+        completed,
+        missing,
+        total,
+        coverage: Math.max(0, Math.min(1, coverageValue)),
+      } satisfies AnalyticsCoverageMetric;
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function normaliseMetrics(raw: RawAnalyticsMetrics | undefined): AnalyticsMetrics {
   return {
     totalQuestions: typeof raw?.total_questions === 'number' ? raw.total_questions : 0,
     difficultyDistribution: raw?.difficulty_distribution ?? {},
     reviewStatusDistribution: raw?.review_status_distribution ?? {},
     usageSummary: normaliseUsageSummary(raw?.usage_summary),
+    coverage: normaliseCoverage(raw?.coverage),
   };
 }
 

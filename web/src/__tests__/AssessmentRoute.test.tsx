@@ -83,6 +83,29 @@ describe('AssessmentRoute', () => {
                     { deliveries: 1, questions: 60 },
                   ],
                 },
+                coverage: [
+                  {
+                    label: 'Explanations drafted',
+                    completed: 200,
+                    missing: 0,
+                    total: 200,
+                    coverage: 1,
+                  },
+                  {
+                    label: 'Media attachments added',
+                    completed: 50,
+                    missing: 150,
+                    total: 200,
+                    coverage: 0.25,
+                  },
+                  {
+                    label: 'Media alt text provided',
+                    completed: 45,
+                    missing: 5,
+                    total: 50,
+                    coverage: 0.9,
+                  },
+                ],
               },
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } }

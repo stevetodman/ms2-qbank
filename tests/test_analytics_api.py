@@ -52,6 +52,22 @@ def test_latest_analytics_endpoint_returns_latest(tmp_path, monkeypatch):
             "maximum_usage": 3,
             "usage_distribution": {"3": 1},
         },
+        "coverage": [
+            {
+                "label": "Explanations drafted",
+                "completed": 1,
+                "missing": 0,
+                "total": 1,
+                "coverage": 1.0,
+            },
+            {
+                "label": "Media alt text provided",
+                "completed": 1,
+                "missing": 0,
+                "total": 1,
+                "coverage": 1.0,
+            },
+        ],
     }
     _write_artifact(artifact_dir, "20240102T030405Z", metrics_old, "2024-01-02T03:04:05Z")
 
@@ -67,6 +83,29 @@ def test_latest_analytics_endpoint_returns_latest(tmp_path, monkeypatch):
             "maximum_usage": 6,
             "usage_distribution": {"3": 5},
         },
+        "coverage": [
+            {
+                "label": "Explanations drafted",
+                "completed": 2,
+                "missing": 0,
+                "total": 2,
+                "coverage": 1.0,
+            },
+            {
+                "label": "Media attachments added",
+                "completed": 1,
+                "missing": 1,
+                "total": 2,
+                "coverage": 0.5,
+            },
+            {
+                "label": "Media alt text provided",
+                "completed": 1,
+                "missing": 0,
+                "total": 1,
+                "coverage": 1.0,
+            },
+        ],
     }
     _write_artifact(artifact_dir, "20240203T040506Z", metrics_new, "2024-02-03T04:05:06Z")
 
@@ -93,6 +132,31 @@ def test_latest_analytics_endpoint_returns_latest(tmp_path, monkeypatch):
     assert usage_summary["minimum_usage"] == 4
     assert usage_summary["maximum_usage"] == 6
     assert usage_summary["usage_distribution"] == [{"deliveries": 3, "questions": 5}]
+
+    coverage = metrics["coverage"]
+    assert coverage == [
+        {
+            "label": "Explanations drafted",
+            "completed": 2,
+            "missing": 0,
+            "total": 2,
+            "coverage": 1.0,
+        },
+        {
+            "label": "Media attachments added",
+            "completed": 1,
+            "missing": 1,
+            "total": 2,
+            "coverage": 0.5,
+        },
+        {
+            "label": "Media alt text provided",
+            "completed": 1,
+            "missing": 0,
+            "total": 1,
+            "coverage": 1.0,
+        },
+    ]
 
 
 def test_latest_analytics_endpoint_returns_404_when_missing(tmp_path, monkeypatch):
@@ -240,6 +304,15 @@ def _default_metrics_payload() -> Dict[str, object]:
             "maximum_usage": 1,
             "usage_distribution": {"1": 1},
         },
+        "coverage": [
+            {
+                "label": "Explanations drafted",
+                "completed": 1,
+                "missing": 0,
+                "total": 1,
+                "coverage": 1.0,
+            }
+        ],
     }
 
 

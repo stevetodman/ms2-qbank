@@ -6,7 +6,8 @@
     "total_questions",
     "difficulty_distribution",
     "review_status_distribution",
-    "usage_summary"
+    "usage_summary",
+    "coverage"
   ],
   "properties": {
     "total_questions": {
@@ -67,6 +68,42 @@
           "additionalProperties": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "description": "Contributor progress indicators for optional content workstreams.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "completed",
+          "missing",
+          "total",
+          "coverage"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "missing": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "coverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
           }
         }
       }

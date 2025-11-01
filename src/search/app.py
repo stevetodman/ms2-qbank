@@ -107,6 +107,16 @@ class AnalyticsUsageSummary(BaseModel):
     usage_distribution: List[UsageDistributionBucket]
 
 
+class CoverageMetric(BaseModel):
+    """Contributor coverage indicator."""
+
+    label: str
+    completed: int = Field(..., ge=0)
+    missing: int = Field(..., ge=0)
+    total: int = Field(..., ge=0)
+    coverage: float = Field(..., ge=0, le=1)
+
+
 class AnalyticsMetrics(BaseModel):
     """Top-level analytics payload returned to clients."""
 
@@ -114,6 +124,7 @@ class AnalyticsMetrics(BaseModel):
     difficulty_distribution: Dict[str, int]
     review_status_distribution: Dict[str, int]
     usage_summary: AnalyticsUsageSummary
+    coverage: List[CoverageMetric]
 
 
 class AnalyticsArtifact(BaseModel):
@@ -221,11 +232,68 @@ def _load_latest_analytics() -> Dict[str, Any]:
         "usage_distribution": buckets,
     }
 
+    coverage_entries = metrics.get("coverage", [])
+
+    def _append_coverage(
+        label: Any,
+        completed: Any,
+        missing: Any,
+        total: Any = None,
+        ratio: Any = None,
+    ) -> None:
+        if not isinstance(label, str):
+            return
+        if not isinstance(completed, int) or completed < 0:
+            return
+        if not isinstance(missing, int) or missing < 0:
+            return
+        computed_total = completed + missing
+        if not isinstance(total, int) or total < 0:
+            total = computed_total
+        if isinstance(ratio, (int, float)):
+            coverage_ratio = float(ratio)
+        else:
+            coverage_ratio = float(completed / total) if total else 0.0
+        coverage.append(
+            {
+                "label": label,
+                "completed": completed,
+                "missing": missing,
+                "total": total,
+                "coverage": max(0.0, min(1.0, coverage_ratio)),
+            }
+        )
+
+    coverage: List[Dict[str, Any]] = []
+    if isinstance(coverage_entries, list):
+        for entry in coverage_entries:
+            if not isinstance(entry, dict):
+                continue
+            _append_coverage(
+                entry.get("label"),
+                entry.get("completed"),
+                entry.get("missing"),
+                entry.get("total"),
+                entry.get("coverage"),
+            )
+    elif isinstance(coverage_entries, dict):
+        for label, payload in coverage_entries.items():
+            if not isinstance(payload, dict):
+                continue
+            _append_coverage(
+                label,
+                payload.get("completed"),
+                payload.get("missing"),
+                payload.get("total"),
+                payload.get("coverage"),
+            )
+
     metrics_payload = {
         "total_questions": metrics.get("total_questions", 0),
         "difficulty_distribution": metrics.get("difficulty_distribution", {}),
         "review_status_distribution": metrics.get("review_status_distribution", {}),
         "usage_summary": usage_summary,
+        "coverage": coverage,
     }
 
     artifact = {

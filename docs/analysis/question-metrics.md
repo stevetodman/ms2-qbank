@@ -8,6 +8,18 @@ Automated summary of question usage patterns, difficulty mix, and review status 
 - **Total usage events:** 25
 - **Average usage per tracked question:** 12.50
 
+## Content Coverage
+Work item | Completed | Missing | Coverage
+--- | --- | --- | ---
+Explanations drafted | 2 | 0 | 100%
+Answer rationales captured | 2 | 0 | 100%
+Keywords assigned | 2 | 0 | 100%
+Reference links added | 2 | 0 | 100%
+Media attachments added | 1 | 1 | 50%
+Media alt text provided | 1 | 0 | 100%
+Usage tracking configured | 2 | 0 | 100%
+Tags applied | 2 | 0 | 100%
+
 ## Difficulty Distribution
 Difficulty | Questions
 --- | ---
