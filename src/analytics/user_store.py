@@ -2,9 +2,10 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
+from time import time
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select, func
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 
 from .user_models import (
     QuestionAttemptDB,
@@ -29,6 +30,10 @@ class UserAnalyticsStore:
 
         self.engine = create_engine(db_path, echo=False)
         self._create_tables()
+
+        # Cache for percentile rankings (1-hour TTL)
+        self._percentile_cache: dict[int, tuple[PercentileRanking, float]] = {}
+        self._cache_ttl = 3600  # 1 hour in seconds
 
     def _create_tables(self) -> None:
         """Create all tables if they don't exist."""
@@ -197,16 +202,82 @@ class UserAnalyticsStore:
             )
 
     def compute_percentile_ranking(self, user_id: int) -> PercentileRanking:
-        """Compute user's percentile ranking compared to all users."""
-        with Session(self.engine) as session:
-            # Get user's stats
-            user_statement = select(QuestionAttemptDB).where(
-                QuestionAttemptDB.user_id == user_id
-            )
-            user_attempts = list(session.exec(user_statement).all())
+        """Compute user's percentile ranking compared to all users.
 
-            if not user_attempts:
-                return PercentileRanking(
+        Optimized version using SQL window functions for O(n) performance
+        instead of O(n²) Python loops. Results are cached for 1 hour.
+        """
+        # Check cache first
+        current_time = time()
+        if user_id in self._percentile_cache:
+            cached_result, cached_time = self._percentile_cache[user_id]
+            if current_time - cached_time < self._cache_ttl:
+                return cached_result
+
+        with Session(self.engine) as session:
+            # Use raw SQL with window functions for optimal performance
+            # This calculates percentiles for all users in a single query
+            sql = """
+            WITH user_stats AS (
+                -- Aggregate stats per user
+                SELECT
+                    user_id,
+                    COUNT(*) as total_attempts,
+                    SUM(CASE WHEN is_correct THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as accuracy,
+                    AVG(CASE WHEN time_seconds IS NOT NULL THEN time_seconds END) as avg_time,
+                    COUNT(*) as volume
+                FROM question_attempts
+                GROUP BY user_id
+                HAVING COUNT(*) > 0
+            ),
+            percentiles AS (
+                -- Calculate percentile ranks using window functions
+                SELECT
+                    user_id,
+                    total_attempts,
+                    accuracy,
+                    avg_time,
+                    volume,
+                    -- PERCENT_RANK returns 0 to 1, multiply by 100 for percentage
+                    ROUND(PERCENT_RANK() OVER (ORDER BY accuracy) * 100, 2) as accuracy_percentile,
+                    -- For speed, lower is better, so reverse the order
+                    ROUND(PERCENT_RANK() OVER (ORDER BY avg_time DESC) * 100, 2) as speed_percentile,
+                    ROUND(PERCENT_RANK() OVER (ORDER BY volume) * 100, 2) as volume_percentile,
+                    COUNT(*) OVER () as total_users
+                FROM user_stats
+            )
+            SELECT
+                user_id,
+                total_attempts,
+                accuracy,
+                avg_time,
+                volume,
+                accuracy_percentile,
+                CASE
+                    WHEN avg_time IS NULL THEN 0
+                    ELSE speed_percentile
+                END as speed_percentile,
+                volume_percentile,
+                -- Overall percentile: weighted average (50% accuracy, 25% speed, 25% volume)
+                ROUND(
+                    accuracy_percentile * 0.5 +
+                    CASE WHEN avg_time IS NULL THEN 0 ELSE speed_percentile END * 0.25 +
+                    volume_percentile * 0.25,
+                    2
+                ) as overall_percentile,
+                total_users
+            FROM percentiles
+            WHERE user_id = :user_id
+            """
+
+            result = session.execute(
+                text(sql),
+                {"user_id": user_id}
+            ).fetchone()
+
+            if not result:
+                # User has no attempts
+                ranking = PercentileRanking(
                     user_id=user_id,
                     overall_percentile=0.0,
                     accuracy_percentile=0.0,
@@ -214,85 +285,31 @@ class UserAnalyticsStore:
                     volume_percentile=0.0,
                     total_users=0,
                 )
-
-            user_correct = sum(1 for a in user_attempts if a.is_correct)
-            user_accuracy = user_correct / len(user_attempts) if user_attempts else 0
-            user_time_attempts = [a for a in user_attempts if a.time_seconds is not None]
-            user_avg_time = (
-                sum(a.time_seconds for a in user_time_attempts) / len(user_time_attempts)
-                if user_time_attempts
-                else 0
-            )
-            user_volume = len(user_attempts)
-
-            # Get all users' stats
-            all_users_statement = select(QuestionAttemptDB.user_id).distinct()
-            all_user_ids = list(session.exec(all_users_statement).all())
-            total_users = len(all_user_ids)
-
-            if total_users <= 1:
-                return PercentileRanking(
+            else:
+                ranking = PercentileRanking(
                     user_id=user_id,
-                    overall_percentile=100.0,
-                    accuracy_percentile=100.0,
-                    speed_percentile=100.0,
-                    volume_percentile=100.0,
-                    total_users=total_users,
+                    overall_percentile=float(result[8]),  # overall_percentile
+                    accuracy_percentile=float(result[5]),  # accuracy_percentile
+                    speed_percentile=float(result[6]),  # speed_percentile
+                    volume_percentile=float(result[7]),  # volume_percentile
+                    total_users=int(result[9]),  # total_users
                 )
 
-            # Calculate percentiles
-            better_accuracy = 0
-            better_speed = 0
-            better_volume = 0
+            # Update cache
+            self._percentile_cache[user_id] = (ranking, time())
+            return ranking
 
-            for other_user_id in all_user_ids:
-                if other_user_id == user_id:
-                    continue
+    def clear_percentile_cache(self, user_id: Optional[int] = None) -> None:
+        """Clear percentile ranking cache.
 
-                other_statement = select(QuestionAttemptDB).where(
-                    QuestionAttemptDB.user_id == other_user_id
-                )
-                other_attempts = list(session.exec(other_statement).all())
-
-                if not other_attempts:
-                    continue
-
-                # Accuracy comparison
-                other_correct = sum(1 for a in other_attempts if a.is_correct)
-                other_accuracy = other_correct / len(other_attempts)
-                if user_accuracy > other_accuracy:
-                    better_accuracy += 1
-
-                # Speed comparison (lower is better)
-                other_time_attempts = [a for a in other_attempts if a.time_seconds is not None]
-                if other_time_attempts:
-                    other_avg_time = sum(a.time_seconds for a in other_time_attempts) / len(
-                        other_time_attempts
-                    )
-                    if user_avg_time > 0 and user_avg_time < other_avg_time:
-                        better_speed += 1
-
-                # Volume comparison
-                if user_volume > len(other_attempts):
-                    better_volume += 1
-
-            accuracy_percentile = (better_accuracy / (total_users - 1)) * 100
-            speed_percentile = (better_speed / (total_users - 1)) * 100 if user_avg_time > 0 else 0
-            volume_percentile = (better_volume / (total_users - 1)) * 100
-
-            # Overall percentile (weighted average)
-            overall_percentile = (
-                accuracy_percentile * 0.5 + speed_percentile * 0.25 + volume_percentile * 0.25
-            )
-
-            return PercentileRanking(
-                user_id=user_id,
-                overall_percentile=round(overall_percentile, 2),
-                accuracy_percentile=round(accuracy_percentile, 2),
-                speed_percentile=round(speed_percentile, 2),
-                volume_percentile=round(volume_percentile, 2),
-                total_users=total_users,
-            )
+        Args:
+            user_id: If provided, clear cache only for this user.
+                     If None, clear entire cache.
+        """
+        if user_id is not None:
+            self._percentile_cache.pop(user_id, None)
+        else:
+            self._percentile_cache.clear()
 
     def _compute_subject_performance(
         self, attempts: list[QuestionAttemptDB]
