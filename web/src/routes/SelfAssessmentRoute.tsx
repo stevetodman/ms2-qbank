@@ -20,7 +20,7 @@ const enum AssessmentStage {
   Completed = 'completed',
 }
 
-export function AssessmentRoute() {
+export function SelfAssessmentRoute() {
   const [stage, setStage] = useState<AssessmentStage>(AssessmentStage.Setup);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
@@ -93,8 +93,8 @@ export function AssessmentRoute() {
   const busy = stage === AssessmentStage.Loading || stage === AssessmentStage.Submitting;
 
   return (
-    <main>
-      <h1>Simulated assessment</h1>
+    <div className="stack" data-page="self-assessment">
+      <h1>Self-assessment</h1>
       {error && (
         <div role="alert">
           <p>{error}</p>
@@ -127,6 +127,6 @@ export function AssessmentRoute() {
           )}
         </section>
       )}
-    </main>
+    </div>
   );
 }

@@ -7,8 +7,8 @@ export const NotebookRoute = () => {
   const articleId = params.get('articleId') ?? undefined;
 
   return (
-    <main className="stack">
+    <div className="stack" data-page="notebook">
       <NotebookWorkspace initialQuestionId={questionId} initialArticleId={articleId} />
-    </main>
+    </div>
   );
 };
