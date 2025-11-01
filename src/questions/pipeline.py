@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterator, List, Sequence
+from typing import Dict, Iterator, List, Sequence, Tuple
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -101,6 +102,8 @@ def build_question_dataset(
 
     notes: List[str] = []
     seen_ids: set[str] = set()
+    raw_ids_seen: set[str] = set()
+    per_file_stats: Dict[Path, Dict[str, int]] = {}
     processed = 0
     migrated = 0
     skipped = 0
@@ -128,16 +131,19 @@ def build_question_dataset(
         chunk = []
 
     for source in files:
-        payload = mq.load_json(source)
-        if not isinstance(payload, list):
-            raise DatasetBuildError(f"{source}: expected a list of question objects")
+        stats = per_file_stats.setdefault(
+            source,
+            {"processed": 0, "migrated": 0, "skipped": 0, "duplicates": 0},
+        )
 
-        for index, entry in enumerate(payload):
+        for index, entry in _stream_legacy_questions(source):
             processed += 1
+            stats["processed"] += 1
             location = f"{source}[{index}]"
 
             if not isinstance(entry, dict):
                 skipped += 1
+                stats["skipped"] += 1
                 notes.append(f"{location}: skipped non-object entry")
                 continue
 
@@ -146,11 +152,26 @@ def build_question_dataset(
             if operations:
                 notes.extend(f"{location}: {op}" for op in operations)
 
-            id_note = _ensure_canonical_id(question, seen_ids)
+            raw_id = question.get("id")
+            duplicate_logged = False
+            if isinstance(raw_id, str) and raw_id:
+                if raw_id in raw_ids_seen:
+                    duplicate_logged = True
+                    stats["duplicates"] += 1
+                    notes.append(f"{location}: detected duplicate id '{raw_id}'")
+                else:
+                    raw_ids_seen.add(raw_id)
+
+            id_note = _ensure_canonical_id(
+                question,
+                seen_ids,
+                duplicate_logged=duplicate_logged,
+            )
             if id_note:
                 notes.append(f"{location}: {id_note}")
 
             migrated += 1
+            stats["migrated"] += 1
             chunk.append(question)
 
             if len(chunk) >= chunk_size:
@@ -174,6 +195,13 @@ def build_question_dataset(
             validated_records += count
             if errors:
                 validation_errors[path] = errors
+
+    report_path = output_dir / "build_report.csv"
+
+    if dry_run:
+        notes.append(f"would write build report to {report_path}")
+    else:
+        _write_build_report(report_path, files, per_file_stats)
 
     result = BuildResult(
         input_files=files,
@@ -213,28 +241,140 @@ def _iter_input_files(paths: Sequence[Path]) -> Iterator[Path]:
         yield path
 
 
-def _ensure_canonical_id(question: dict, seen_ids: set[str]) -> str | None:
+def _stream_legacy_questions(path: Path) -> Iterator[Tuple[int, object]]:
+    """Yield question records from *path* without loading the entire payload."""
+
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            preview = handle.read(2048)
+            handle.seek(0)
+            stripped = preview.lstrip()
+            if not stripped:
+                return
+            if stripped[0] == "[":
+                yield from _stream_json_array(handle)
+            else:
+                yield from _stream_ndjson(handle)
+    except json.JSONDecodeError as exc:  # pragma: no cover - runtime safety
+        raise DatasetBuildError(
+            f"{path}: invalid JSON - {exc.msg} (line {exc.lineno} column {exc.colno})"
+        ) from exc
+
+
+def _stream_json_array(handle) -> Iterator[Tuple[int, object]]:
+    decoder = json.JSONDecoder()
+    buffer = ""
+    index = 0
+    end_of_file = False
+
+    while True:
+        if not end_of_file and len(buffer) < 8192:
+            chunk = handle.read(65536)
+            if chunk:
+                buffer += chunk
+            else:
+                end_of_file = True
+
+        stripped = buffer.lstrip()
+        consumed = len(buffer) - len(stripped)
+        if consumed:
+            buffer = stripped
+
+        if not buffer:
+            if end_of_file:
+                break
+            continue
+
+        char = buffer[0]
+        if char in "[,":
+            buffer = buffer[1:]
+            continue
+        if char == "]":
+            buffer = buffer[1:]
+            if buffer.strip():
+                raise DatasetBuildError("Trailing content found after JSON array payload")
+            break
+
+        try:
+            value, offset = decoder.raw_decode(buffer)
+        except ValueError:
+            if end_of_file:
+                raise DatasetBuildError(
+                    "Unexpected end of file while decoding question payload"
+                )
+            chunk = handle.read(65536)
+            if not chunk:
+                end_of_file = True
+            else:
+                buffer += chunk
+            continue
+
+        yield index, value
+        index += 1
+        buffer = buffer[offset:]
+
+
+def _stream_ndjson(handle) -> Iterator[Tuple[int, object]]:
+    decoder = json.JSONDecoder()
+    index = 0
+    for raw_line in handle:
+        line = raw_line.strip()
+        if not line:
+            continue
+        yield index, decoder.decode(line)
+        index += 1
+
+
+def _write_build_report(
+    path: Path,
+    files: Sequence[Path],
+    per_file_stats: Dict[Path, Dict[str, int]],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as csvfile:
+        fieldnames = ["source", "processed", "migrated", "skipped"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for source in files:
+            stats = per_file_stats.get(
+                source, {"processed": 0, "migrated": 0, "skipped": 0}
+            )
+            writer.writerow(
+                {
+                    "source": str(source),
+                    "processed": stats.get("processed", 0),
+                    "migrated": stats.get("migrated", 0),
+                    "skipped": stats.get("skipped", 0),
+                }
+            )
+
+
+def _ensure_canonical_id(
+    question: dict, seen_ids: set[str], *, duplicate_logged: bool = False
+) -> str | None:
     raw_id = question.get("id")
-    note: str | None = None
 
     if isinstance(raw_id, str) and ID_PATTERN.fullmatch(raw_id):
         if raw_id not in seen_ids:
             seen_ids.add(raw_id)
             return None
-        note = f"duplicate id '{raw_id}' detected; assigning new canonical id"
-    elif isinstance(raw_id, str) and raw_id:
-        note = f"replaced non-conforming id '{raw_id}' with canonical id"
-    else:
-        note = "assigned canonical id"
+        canonical_id = _generate_canonical_id(question, seen_ids)
+        question["id"] = canonical_id
+        seen_ids.add(canonical_id)
+        if duplicate_logged:
+            return f"assigned new canonical id {canonical_id}"
+        return f"duplicate id '{raw_id}' detected; assigned canonical id {canonical_id}"
+
+    if isinstance(raw_id, str) and raw_id:
+        canonical_id = _generate_canonical_id(question, seen_ids)
+        question["id"] = canonical_id
+        seen_ids.add(canonical_id)
+        return f"replaced non-conforming id '{raw_id}' with canonical id {canonical_id}"
 
     canonical_id = _generate_canonical_id(question, seen_ids)
     question["id"] = canonical_id
     seen_ids.add(canonical_id)
-
-    if note:
-        note = f"{note} {canonical_id}"
-
-    return note
+    return f"assigned canonical id {canonical_id}"
 
 
 def _generate_canonical_id(question: dict, seen_ids: set[str]) -> str:

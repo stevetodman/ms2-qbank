@@ -54,3 +54,9 @@ Based on current data and validation rules, the following fields are required fo
 - The GitHub Actions workflow defined in `.github/workflows/validate.yml` installs project dependencies plus `jsonschema`, executes `python scripts/validate_questions.py`, and blocks merges when validation fails.
 - Contributors can reproduce the checks locally with `python scripts/validate_questions.py`; the command reports the number of validated questions and highlights any failing files with detailed error listings.
 
+## Ingestion Workflow Additions
+- Legacy exports should be staged in `data/raw_exports/`. The `build_question_dataset` pipeline streams each file without loading entire payloads into memory, enabling tens of thousands of records to be processed comfortably on developer laptops.
+- During ingestion the pipeline detects duplicate legacy IDs before new canonical `q_<hash>` identifiers are minted, emitting notes so analysts can trace when records were reassigned.
+- Normalised chunks are written to `data/questions/` using deterministic filenames (`questions_0001.json`, `questions_0002.json`, …) so downstream audits can diff predictable artifacts between runs.
+- Every build writes `data/questions/build_report.csv`, summarising processed, migrated, and skipped record counts per source file to assist data quality reviews.
+
