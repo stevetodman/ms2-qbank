@@ -45,8 +45,10 @@ services:
     container_name: ms2qbank-users
     command: uvicorn src.users.app:app --host 0.0.0.0 --port 8000 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/users.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_users
       - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
     ports:
       - "8000:8000"
     volumes:
@@ -72,12 +74,15 @@ services:
     container_name: ms2qbank-flashcards
     command: uvicorn src.flashcards.app:app --host 0.0.0.0 --port 8001 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/flashcards.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_flashcards
     ports:
       - "8001:8001"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -95,12 +100,15 @@ services:
     container_name: ms2qbank-assessments
     command: uvicorn src.assessments.db_app:app --host 0.0.0.0 --port 8002 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/assessments.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_assessments
     ports:
       - "8002:8002"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -118,12 +126,15 @@ services:
     container_name: ms2qbank-videos
     command: uvicorn src.videos.app:app --host 0.0.0.0 --port 8003 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/videos.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_videos
     ports:
       - "8003:8003"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -141,12 +152,15 @@ services:
     container_name: ms2qbank-library
     command: uvicorn src.library.db_app:app --host 0.0.0.0 --port 8004 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/library.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_library
     ports:
       - "8004:8004"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -164,12 +178,15 @@ services:
     container_name: ms2qbank-planner
     command: uvicorn src.planner.app:app --host 0.0.0.0 --port 8005 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/planner.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_planner
     ports:
       - "8005:8005"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -208,12 +225,15 @@ services:
     container_name: ms2qbank-reviews
     command: uvicorn src.reviews.app:app --host 0.0.0.0 --port 8007 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/reviews.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_reviews
     ports:
       - "8007:8007"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
@@ -231,12 +251,15 @@ services:
     container_name: ms2qbank-analytics
     command: uvicorn src.analytics.user_app:app --host 0.0.0.0 --port 8008 --reload
     environment:
-      - DATABASE_URL=sqlite:///data/analytics.db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/ms2qbank_analytics
     ports:
       - "8008:8008"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - ms2qbank
