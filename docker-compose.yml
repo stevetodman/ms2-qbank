@@ -1,0 +1,283 @@
+version: '3.8'
+
+services:
+  # ===== Database Services =====
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ms2qbank-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ms2qbank
+
+  redis:
+    image: redis:7-alpine
+    container_name: ms2qbank-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ms2qbank
+
+  # ===== Backend Microservices =====
+
+  users:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-users
+    command: uvicorn src.users.app:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/users.db
+      - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  flashcards:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-flashcards
+    command: uvicorn src.flashcards.app:app --host 0.0.0.0 --port 8001 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/flashcards.db
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  assessments:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-assessments
+    command: uvicorn src.assessments.db_app:app --host 0.0.0.0 --port 8002 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/assessments.db
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  videos:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-videos
+    command: uvicorn src.videos.app:app --host 0.0.0.0 --port 8003 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/videos.db
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  library:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-library
+    command: uvicorn src.library.db_app:app --host 0.0.0.0 --port 8004 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/library.db
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8004/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  planner:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-planner
+    command: uvicorn src.planner.app:app --host 0.0.0.0 --port 8005 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/planner.db
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8005/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  questions:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-questions
+    command: uvicorn src.questions.app:app --host 0.0.0.0 --port 8006 --reload
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8006/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reviews:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-reviews
+    command: uvicorn src.reviews.app:app --host 0.0.0.0 --port 8007 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/reviews.db
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8007/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    container_name: ms2qbank-analytics
+    command: uvicorn src.analytics.user_app:app --host 0.0.0.0 --port 8008 --reload
+    environment:
+      - DATABASE_URL=sqlite:///data/analytics.db
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8008/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===== Frontend =====
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: ms2qbank-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - users
+      - flashcards
+      - assessments
+      - videos
+      - library
+      - planner
+      - questions
+      - reviews
+      - analytics
+    restart: unless-stopped
+    networks:
+      - ms2qbank
+
+# ===== Networks =====
+
+networks:
+  ms2qbank:
+    driver: bridge
+
+# ===== Volumes =====
+
+volumes:
+  postgres_data:
+    driver: local
