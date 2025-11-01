@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,10 +79,18 @@ class _AnalyticsDispatcher:
 class ReviewStore:
     """SQLite-backed review store compatible with the legacy interface."""
 
-    def __init__(self, path: Path | str, analytics_hook: Optional[StatusHook] = None):
+    def __init__(
+        self,
+        path: Path | str,
+        analytics_hook: Optional[StatusHook] = None,
+        *,
+        audit_log_path: Path | str | None = None,
+    ):
         self._path = Path(path)
         self._lock = Lock()
         self._analytics = _AnalyticsDispatcher(analytics_hook)
+        self._audit_log_path = Path(audit_log_path) if audit_log_path else Path("data/reviews/audit.log")
+        self._audit_log_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = create_engine(
             self._database_url(),
             connect_args={"check_same_thread": False},
@@ -126,6 +135,8 @@ class ReviewStore:
                 session.add(row)
                 session.commit()
 
+                self._log_transition(question_id, previous_status, new_status, event)
+
         self._analytics.emit(question_id, previous_status, new_status)
         return record
 
@@ -133,3 +144,27 @@ class ReviewStore:
         """Update the analytics hook used for status transitions."""
 
         self._analytics.hook = hook
+
+    def _log_transition(
+        self,
+        question_id: str,
+        previous_status: str,
+        new_status: str,
+        event: ReviewEvent,
+    ) -> None:
+        if previous_status == new_status:
+            return
+
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "question_id": question_id,
+            "previous_status": previous_status,
+            "new_status": new_status,
+            "reviewer": event.reviewer,
+            "action": event.action.value,
+            "role": event.role.value,
+            "comment": event.comment,
+            "event_timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
+        }
+        with self._audit_log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")

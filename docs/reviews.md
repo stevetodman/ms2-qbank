@@ -51,3 +51,34 @@ layout.
    status transitions between `pending`, `approved`, and `rejected`.
    Connect these hooks to your telemetry pipeline to keep review
    dashboards in sync with the new database-backed workflow.
+
+## Authentication requirements
+
+The review API can validate bearer tokens issued by multiple identity
+providers by configuring JWKS-backed authentication. Set the
+`REVIEWS_JWT_JWKS_PROVIDERS` environment variable to a JSON array of
+issuer definitions. Each entry must provide an `issuer` identifier and a
+`jwks_url`. Optional keys allow you to declare the expected `audience`,
+which claims contain the subject and roles, and how remote role names
+map onto the workflow's canonical roles.
+
+```json
+[
+  {
+    "issuer": "https://sso.example.com",
+    "jwks_url": "https://sso.example.com/.well-known/jwks.json",
+    "audience": "ms2-qbank",
+    "roles_claim": "permissions",
+    "role_mapping": {
+      "content-editor": "editor",
+      "content-admin": "admin"
+    },
+    "default_roles": ["reviewer"]
+  }
+]
+```
+
+If the JSON configuration is supplied, the API automatically discovers
+the signing keys and maps the incoming roles to the set expected by the
+review workflow. You can continue using the legacy symmetric secret by
+setting `REVIEWS_JWT_SECRET` when JWKS providers are not defined.
