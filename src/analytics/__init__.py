@@ -8,6 +8,7 @@ from .reporting import (
     write_if_changed,
     write_json_if_changed,
 )
+from .service import AnalyticsService
 
 __all__ = [
     "QuestionMetrics",
@@ -18,4 +19,5 @@ __all__ = [
     "render_markdown",
     "write_if_changed",
     "write_json_if_changed",
+    "AnalyticsService",
 ]

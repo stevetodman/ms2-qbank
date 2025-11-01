@@ -24,14 +24,33 @@ question's status transitions between states. Background scheduling debounces
 rapid transitions, ensuring the `data/analytics/` artifacts stay current without
 manual intervention.
 
+## Production worker
+
+Deployments that run the review API automatically launch the analytics worker
+alongside the FastAPI process. Start the service with:
+
+```bash
+REVIEWS_JWT_SECRET="change-me" \
+uvicorn reviews.app:app --host 0.0.0.0 --port 8000
+```
+
+The worker shares the filesystem with the API container, periodically checks
+`data/analytics/` for a recent snapshot, and emits a `WARNING` log when the
+latest artifact is more than ten minutes old. Operators can query
+`GET /analytics/health` to retrieve the most recent generation timestamp and the
+current freshness flag.
+
 Artifacts follow the `YYYYMMDDTHHMMSSZ` naming convention. The JSON payload
 contains the metrics and the UTC timestamp of generation, while the markdown
 file renders the dashboard for quick inspection.
 
 ## API surface
 
-The FastAPI service exposes the `/analytics/latest` endpoint which returns the
-most recent analytics snapshot.
+The FastAPI service exposes analytics endpoints for consumers and operators:
+
+- `GET /analytics/latest` returns the most recent analytics snapshot.
+- `GET /analytics/health` reports whether the background worker has generated a
+  fresh snapshot within the last ten minutes.
 
 ```bash
 curl http://localhost:8000/analytics/latest

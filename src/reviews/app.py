@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from analytics.scheduler import AnalyticsRefreshScheduler
+from analytics.service import AnalyticsService
 from .auth import AuthenticationMiddleware, AuthenticatedUser, bearer_jwt_resolver, get_current_user
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
@@ -78,18 +78,20 @@ def create_app(store: Optional[ReviewStore] = None, *, jwt_secret: Optional[str]
     app.add_middleware(AuthenticationMiddleware, resolver=bearer_jwt_resolver(secret))
 
     store_instance = store or _get_default_store()
-    scheduler = AnalyticsRefreshScheduler()
+    analytics_service = AnalyticsService()
     app.state.review_store = store_instance
-    app.state.analytics_scheduler = scheduler
+    app.state.analytics_service = analytics_service
+    app.state.analytics_scheduler = analytics_service.scheduler
+    app.include_router(analytics_service.router)
 
     @app.on_event("startup")
     async def _startup() -> None:
-        await scheduler.start()
-        store_instance.set_analytics_hook(scheduler.handle_status_change)
+        await analytics_service.start()
+        store_instance.set_analytics_hook(analytics_service.status_hook)
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
-        await scheduler.shutdown()
+        await analytics_service.shutdown()
 
     def get_store() -> ReviewStore:
         return app.state.review_store

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from analytics.scheduler import AnalyticsRefreshScheduler
+from analytics.service import AnalyticsService
 import search.app as search_app
 from reviews.models import ReviewAction, ReviewEvent, ReviewerRole
 from reviews.store import ReviewStore
@@ -19,6 +21,63 @@ def _write_artifact(directory, basename: str, metrics: Dict[str, object], genera
     json_path.write_text(json.dumps(payload), encoding="utf-8")
     markdown_path = directory / f"{basename}.md"
     markdown_path.write_text("# metrics\n", encoding="utf-8")
+
+
+def _build_service_app(service: AnalyticsService) -> FastAPI:
+    app = FastAPI()
+    app.include_router(service.router)
+
+    @app.on_event("startup")
+    async def _startup() -> None:  # pragma: no cover - exercised via TestClient
+        await service.start()
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:  # pragma: no cover - exercised via TestClient
+        await service.shutdown()
+
+    return app
+
+
+def test_analytics_health_endpoint_reports_latest_snapshot(tmp_path):
+    artifact_dir = tmp_path / "analytics"
+    artifact_dir.mkdir()
+    metrics = {"total_questions": 42}
+    now = datetime.now(timezone.utc)
+    timestamp = now.strftime("%Y%m%dT%H%M%SZ")
+    generated_at = now.isoformat().replace("+00:00", "Z")
+    _write_artifact(artifact_dir, timestamp, metrics, generated_at)
+
+    service = AnalyticsService(artifact_dir=artifact_dir, check_interval=0.05)
+    app = _build_service_app(service)
+
+    with TestClient(app) as client:
+        response = client.get("/analytics/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_fresh"] is True
+    assert payload["latest_generated_at"] == generated_at
+
+
+def test_analytics_health_logs_warning_for_stale_snapshot(tmp_path, caplog):
+    artifact_dir = tmp_path / "analytics"
+    artifact_dir.mkdir()
+    metrics = {"total_questions": 1}
+    old = datetime.now(timezone.utc) - timedelta(minutes=30)
+    timestamp = old.strftime("%Y%m%dT%H%M%SZ")
+    generated_at = old.isoformat().replace("+00:00", "Z")
+    _write_artifact(artifact_dir, timestamp, metrics, generated_at)
+
+    service = AnalyticsService(artifact_dir=artifact_dir, check_interval=0.05)
+    caplog.set_level("WARNING")
+
+    async def _exercise() -> None:
+        await service.start()
+        await service.shutdown()
+
+    asyncio.run(_exercise())
+
+    assert "No fresh analytics snapshot found" in caplog.text
 
 
 def test_latest_analytics_endpoint_returns_latest(tmp_path, monkeypatch):
