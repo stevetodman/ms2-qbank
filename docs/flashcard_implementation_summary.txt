@@ -1,0 +1,108 @@
+FLASHCARD IMPLEMENTATION STATUS - QUICK REFERENCE
+================================================
+
+WHAT'S IMPLEMENTED:
+  [X] Frontend route at /flashcards
+  [X] Navigation menu link
+  [X] Placeholder component
+  [X] References in dashboard
+  
+  Implemented Files:
+  - /home/user/ms2-qbank/web/src/routes/FlashcardsRoute.tsx (stub only)
+  - /home/user/ms2-qbank/web/src/components/layout/AppLayout.tsx (nav link)
+
+WHAT'S MISSING (Critical):
+
+BACKEND SERVICES (0% complete):
+  [ ] Flashcard FastAPI service (/src/flashcards/ directory)
+  [ ] Data models (Deck, Card, ReviewRecord, SpacedRepetitionState)
+  [ ] CRUD endpoints for decks and cards
+  [ ] QBank integration endpoints
+  [ ] Review submission endpoint
+  [ ] Data persistence layer (JSON or database)
+
+SPACED REPETITION ENGINE (0% complete):
+  [ ] SM-2 algorithm implementation
+  [ ] Interval calculation (1 day, 3 days, 7+ days pattern)
+  [ ] Ease factor tracking per card (starts at 2.5)
+  [ ] Next review date scheduler
+  [ ] Quality rating system (0-5 scale)
+  [ ] Edge case handling
+
+FRONTEND COMPONENTS (0% complete):
+  [ ] Deck browser (ReadyDecks + SmartCards tabs)
+  [ ] Deck editor (create, edit, delete)
+  [ ] Card editor (rich text, images, tables)
+  [ ] Review interface (flip card, confidence buttons)
+  [ ] Import from QBank dialog
+  [ ] Statistics dashboard
+
+READYDECKS CONTENT (0% complete):
+  [ ] 2,000+ expert-created flashcards
+  [ ] System-organized collections (Anatomy, Pharmacology, etc.)
+  [ ] Images and diagrams for visual cards
+  [ ] Database fixtures
+
+QBank INTEGRATION (0% complete):
+  [ ] Auto-create cards from questions
+  [ ] Bulk import from test results
+  [ ] Import marked/incorrect questions
+  [ ] Link cards to source questions
+  [ ] Update cards when questions change
+
+DECK MANAGEMENT (0% complete):
+  [ ] Deck templates
+  [ ] Public/private decks
+  [ ] Deck sharing
+  [ ] Progress tracking per deck
+  [ ] Deck statistics
+  [ ] Streak tracking
+
+RELATED SERVICES NEEDED:
+  [ ] Analytics hooks for card reviews
+  [ ] Search API integration for card indexing
+  [ ] Auth system integration (multi-user support)
+  [ ] Mobile sync support
+
+ESTIMATED EFFORT: 3-4 weeks (250-350 developer hours)
+
+CRITICAL PATH (in order):
+1. Data models definition (1-2 days)
+2. Spaced repetition algorithm (2-3 days)
+3. FastAPI service + basic endpoints (3-4 days)
+4. Frontend review interface (5-7 days)
+5. QBank integration (2-3 days)
+6. ReadyDeck content creation (3-5 days)
+
+KEY TECHNICAL CONSIDERATIONS:
+- Spaced repetition has many edge cases requiring thorough testing
+- Multi-device sync needed for mobile apps (not yet built)
+- Need to handle 2,000+ cards efficiently (index/pagination)
+- Rich text editor will be complex component
+- Medical expertise required for ReadyDeck content
+
+RELATED PRD FEATURES DEPENDING ON THIS:
+- Dashboard flashcard reminders
+- Study Planner integration (schedule card reviews)
+- Notebook to flashcard conversion
+- Performance analytics for card learning
+- Mobile app sync
+
+DATABASE SCHEMA (if using SQL):
+  - decks table (id, user_id, name, type, created_at)
+  - flashcards table (id, deck_id, card_type, front, back, images)
+  - card_reviews table (id, card_id, user_id, quality, ease_factor, interval, next_review_date)
+
+FILE STRUCTURE (if using JSON):
+  data/flashcards/
+    ├── decks.json
+    ├── cards.json
+    ├── reviews.json
+    └── statistics.json
+
+COMPARISON TO EXISTING SERVICES:
+This should be modeled after:
+- Assessment service (/src/assessments/) - CRUD + state management
+- Review service (/src/reviews/) - workflow + state transitions
+- Planner service (/src/planner/) - scheduling logic
+

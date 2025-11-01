@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import clsx from 'clsx';
 import type { PracticeMode, QuestionPayload } from '../types/practice.ts';
+import { CreateSmartCardModal } from './CreateSmartCardModal';
+import { QuickNote } from './QuickNote';
 
 interface QuestionViewerProps {
   question: QuestionPayload;
@@ -26,6 +29,9 @@ export const QuestionViewer = ({
   questionNumber,
   totalQuestions,
 }: QuestionViewerProps) => {
+  const [showSmartCardModal, setShowSmartCardModal] = useState(false);
+  const [smartCardCreated, setSmartCardCreated] = useState(false);
+
   const explanationVisible = revealed || completed;
   const modeLabel = mode === 'tutor' ? 'Tutor mode' : mode === 'timed' ? 'Timed mode' : 'Custom mode';
 
@@ -104,9 +110,46 @@ export const QuestionViewer = ({
                 ))}
               </ul>
             )}
+            <div className="toolbar" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+              {smartCardCreated ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#059669' }}>
+                  <span>✓ SmartCard created!</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowSmartCardModal(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <span>📝</span>
+                  Create SmartCard
+                </button>
+              )}
+            </div>
+            <div style={{ marginTop: '1rem' }}>
+              <QuickNote
+                questionId={question.id}
+                compact={true}
+                onSuccess={() => {
+                  // Optionally show success message
+                }}
+              />
+            </div>
           </section>
         )}
       </footer>
+
+      {showSmartCardModal && (
+        <CreateSmartCardModal
+          question={question}
+          onClose={() => setShowSmartCardModal(false)}
+          onSuccess={() => {
+            setSmartCardCreated(true);
+            setShowSmartCardModal(false);
+          }}
+        />
+      )}
     </article>
   );
 };

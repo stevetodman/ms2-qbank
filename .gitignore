@@ -5,3 +5,16 @@ web/dist/
 web/playwright-report/
 web/test-results/
 data/reviews/
+*.db
+data/*.db
+
+# TypeScript build artifacts
+web/src/**/*.js
+web/src/**/*.d.ts
+web/*.js
+web/*.d.ts
+web/*.tsbuildinfo
+!web/vite.config.ts
+!web/jest.config.ts
+!web/playwright.config.ts
+!web/setupTests.ts

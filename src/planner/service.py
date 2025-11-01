@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
-from typing import Iterable
+from typing import Iterable, Optional
 
 from .models import (
     StudyPlanCreateRequest,
@@ -13,16 +13,25 @@ from .models import (
     StudyPlanTaskModel,
 )
 from .scheduler import StudyPlan, StudyPlanParameters, StudyPlanScheduler, StudyPlanTask, SubjectPriority
+from .store import StudyPlanStore
 
 
 class StudyPlannerService:
-    """Handle lifecycle operations for study plans."""
+    """Handle lifecycle operations for study plans with database persistence."""
 
-    def __init__(self, scheduler: StudyPlanScheduler | None = None) -> None:
+    def __init__(
+        self,
+        scheduler: Optional[StudyPlanScheduler] = None,
+        store: Optional[StudyPlanStore] = None,
+    ) -> None:
         self.scheduler = scheduler or StudyPlanScheduler()
-        self._plans: dict[str, StudyPlan] = {}
+        self.store = store or StudyPlanStore()
 
-    def create_plan(self, payload: StudyPlanCreateRequest) -> StudyPlanModel:
+    def create_plan(
+        self,
+        payload: StudyPlanCreateRequest,
+        user_id: Optional[int] = None,
+    ) -> StudyPlanModel:
         start_date = payload.start_date or date.today()
         daily_minutes = int(round(payload.daily_study_hours * 60))
         if daily_minutes <= 0:
@@ -38,22 +47,26 @@ class StudyPlannerService:
             ],
         )
         plan = self.scheduler.schedule(params)
-        self._plans[plan.plan_id] = plan
+
+        # Save to database instead of in-memory dict
+        self.store.save_plan(plan, user_id=user_id)
+
         return self._to_response(plan)
 
-    def list_plans(self) -> list[StudyPlanModel]:
-        plans = sorted(self._plans.values(), key=lambda plan: plan.created_at, reverse=True)
+    def list_plans(self, user_id: Optional[int] = None) -> list[StudyPlanModel]:
+        plans = self.store.list_plans(user_id=user_id)
         return [self._to_response(plan) for plan in plans]
 
     def get_plan(self, plan_id: str) -> StudyPlanModel:
-        if plan_id not in self._plans:
+        plan = self.store.get_plan(plan_id)
+        if plan is None:
             raise KeyError(plan_id)
-        return self._to_response(self._plans[plan_id])
+        return self._to_response(plan)
 
     def delete_plan(self, plan_id: str) -> None:
-        if plan_id not in self._plans:
+        deleted = self.store.delete_plan(plan_id)
+        if not deleted:
             raise KeyError(plan_id)
-        del self._plans[plan_id]
 
     def _to_response(self, plan: StudyPlan) -> StudyPlanModel:
         start_date = plan.start_date

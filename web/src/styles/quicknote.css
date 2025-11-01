@@ -1,0 +1,188 @@
+/* Quick Note Component Styles */
+
+.quick-note-toggle {
+  padding: 8px 16px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.quick-note-toggle:hover {
+  background-color: #357abd;
+}
+
+.quick-note-toggle.compact {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.quick-note-container {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quick-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.quick-note-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.quick-note-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #999;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.quick-note-close:hover {
+  color: #333;
+}
+
+.quick-note-error {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.quick-note-success {
+  background-color: #efe;
+  border: 1px solid #cfc;
+  color: #3c3;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.quick-note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quick-note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-note-field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+}
+
+.quick-note-field input,
+.quick-note-field textarea {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.quick-note-field input:focus,
+.quick-note-field textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+.quick-note-field input:disabled,
+.quick-note-field textarea:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.quick-note-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.quick-note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.quick-note-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: #f0f0f0;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #666;
+}
+
+.quick-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.quick-note-actions button {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-note-actions button[type="button"] {
+  background-color: white;
+  color: #666;
+}
+
+.quick-note-actions button[type="button"]:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  border-color: #999;
+}
+
+.quick-note-actions button.btn-primary {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.quick-note-actions button.btn-primary:hover:not(:disabled) {
+  background-color: #357abd;
+  border-color: #357abd;
+}
+
+.quick-note-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
