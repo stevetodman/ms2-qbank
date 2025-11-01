@@ -35,7 +35,7 @@ const App = () => {
         <Route path="dashboard" element={<DashboardRoute />} />
         <Route path="qbank" element={<QBankRoute />} />
         <Route path="self-assessment" element={<SelfAssessmentRoute />} />
-        <Route path="flashcards" element={<FlashcardsRoute />} />
+        <Route path="flashcards/*" element={<FlashcardsRoute />} />
         <Route path="library" element={<LibraryRoute />} />
         <Route path="study-planner" element={<StudyPlannerRoute />} />
         <Route path="notebook" element={<NotebookRoute />} />
