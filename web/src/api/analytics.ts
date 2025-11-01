@@ -1,6 +1,6 @@
 import { resolveEnv } from '../utils/env.ts';
 
-const ANALYTICS_API_BASE_URL = resolveEnv('VITE_ANALYTICS_API_BASE_URL', '/api/search');
+const ANALYTICS_API_BASE_URL = resolveEnv('VITE_ANALYTICS_API_BASE_URL', '/api/analytics');
 
 interface RawUsageDistributionBucket {
   deliveries?: number;
