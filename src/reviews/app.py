@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from analytics.service import AnalyticsService
-from .auth import AuthenticationMiddleware, AuthenticatedUser, bearer_jwt_resolver, get_current_user
+from .auth import (
+    AuthenticationMiddleware,
+    AuthenticatedUser,
+    bearer_jwt_resolver,
+    get_current_user,
+)
+from .auth_providers import JWKSProviderConfig, JWKSFetcher, jwks_bearer_resolver, parse_provider_configs
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
 
@@ -29,6 +35,7 @@ class ReviewSummaryResponse(BaseModel):
     question_id: str
     current_status: str
     history: list[ReviewEventResponse] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
 
 
 class ReviewRequest(BaseModel):
@@ -74,13 +81,28 @@ def create_app(
     *,
     jwt_secret: Optional[str] = None,
     analytics_service: Optional[AnalyticsService] = None,
+    jwks_providers: Optional[Sequence[JWKSProviderConfig]] = None,
+    jwks_fetcher: Optional[JWKSFetcher] = None,
 ) -> FastAPI:
-    secret = jwt_secret or os.getenv("REVIEWS_JWT_SECRET")
-    if not secret:
-        raise RuntimeError("JWT secret must be configured for the review API")
+    configured_providers = list(jwks_providers or [])
+    if not configured_providers:
+        raw_config = os.getenv("REVIEWS_JWT_JWKS_PROVIDERS")
+        if raw_config:
+            try:
+                configured_providers = parse_provider_configs(raw_config)
+            except ValueError as exc:
+                raise RuntimeError("Invalid JWKS provider configuration") from exc
+
+    if configured_providers:
+        resolver = jwks_bearer_resolver(configured_providers, fetcher=jwks_fetcher)
+    else:
+        secret = jwt_secret or os.getenv("REVIEWS_JWT_SECRET")
+        if not secret:
+            raise RuntimeError("JWT secret must be configured for the review API")
+        resolver = bearer_jwt_resolver(secret)
 
     app = FastAPI(title="MS2 QBank Review API")
-    app.add_middleware(AuthenticationMiddleware, resolver=bearer_jwt_resolver(secret))
+    app.add_middleware(AuthenticationMiddleware, resolver=resolver)
 
     store_instance = store or _get_default_store()
     service = analytics_service or AnalyticsService()
@@ -102,11 +124,25 @@ def create_app(
     def get_store() -> ReviewStore:
         return app.state.review_store
 
+    def _allowed_actions(user: AuthenticatedUser) -> list[str]:
+        roles = {role.lower() for role in user.roles}
+        actions: list[str] = []
+        if roles & {
+            ReviewerRole.AUTHOR.value,
+            ReviewerRole.REVIEWER.value,
+            ReviewerRole.EDITOR.value,
+            ReviewerRole.ADMIN.value,
+        }:
+            actions.append(ReviewAction.COMMENT.value)
+        if roles & {ReviewerRole.EDITOR.value, ReviewerRole.ADMIN.value}:
+            actions.extend([ReviewAction.APPROVE.value, ReviewAction.REJECT.value])
+        return actions
+
     @app.get("/questions/{question_id}/reviews", response_model=ReviewSummaryResponse)
     def get_review_summary(
         question_id: str,
         review_store: ReviewStore = Depends(get_store),
-        _user=Depends(get_current_user),
+        user: AuthenticatedUser = Depends(get_current_user),
     ) -> ReviewSummaryResponse:
         record = review_store.get(question_id)
         history = [
@@ -123,6 +159,7 @@ def create_app(
             question_id=question_id,
             current_status=record.current_status(),
             history=history,
+            allowed_actions=_allowed_actions(user),
         )
 
     @app.post("/questions/{question_id}/reviews", response_model=ReviewSummaryResponse)
@@ -157,6 +194,7 @@ def create_app(
             question_id=question_id,
             current_status=record.current_status(),
             history=history,
+            allowed_actions=_allowed_actions(user),
         )
 
     return app

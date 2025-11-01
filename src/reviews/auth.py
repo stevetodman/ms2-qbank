@@ -8,6 +8,7 @@ from typing import Callable, Iterable, Tuple
 
 import jwt
 from fastapi import Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -73,7 +74,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         self._resolver = resolver
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
-        resolver_result = self._resolver(request)
+        try:
+            resolver_result = self._resolver(request)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
         if inspect.isawaitable(resolver_result):
             user = await resolver_result  # pragma: no cover - async resolver not used yet
         else:

@@ -22,6 +22,7 @@ export interface ReviewSummary {
   question_id: string;
   current_status: string;
   history: ReviewEventResponse[];
+  allowed_actions: string[];
 }
 
 async function requestReview(
@@ -36,7 +37,21 @@ async function requestReview(
   });
 
   if (!response.ok) {
-    throw new Error(`Review request failed with status ${response.status}`);
+    let message = `Review request failed with status ${response.status}`;
+    try {
+      const errorBody = (await response.json()) as { detail?: unknown };
+      if (typeof errorBody?.detail === 'string') {
+        message = errorBody.detail;
+      } else if (Array.isArray(errorBody?.detail) && errorBody.detail.length > 0) {
+        const first = errorBody.detail[0];
+        if (typeof first?.msg === 'string') {
+          message = first.msg;
+        }
+      }
+    } catch (err) {
+      /* ignore JSON parsing errors */
+    }
+    throw new Error(message);
   }
 
   return (await response.json()) as ReviewSummary;
