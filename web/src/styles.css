@@ -5,6 +5,7 @@
   font-weight: 400;
   color: #0f172a;
   background-color: #f8fafc;
+  --border-muted: #e2e8f0;
 }
 
 body {
