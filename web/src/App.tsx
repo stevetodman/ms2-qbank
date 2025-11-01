@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from './components/ProtectedRoute.tsx';
 import { AppLayout } from './components/layout/AppLayout.tsx';
 import { DashboardRoute } from './routes/Dashboard.tsx';
 import { QBankRoute } from './routes/QBankRoute.tsx';
@@ -11,11 +12,25 @@ import { PerformanceRoute } from './routes/PerformanceRoute.tsx';
 import { VideosRoute } from './routes/VideosRoute.tsx';
 import { HelpRoute } from './routes/HelpRoute.tsx';
 import { AccountRoute } from './routes/AccountRoute.tsx';
+import { LoginRoute } from './routes/LoginRoute.tsx';
+import { SignupRoute } from './routes/SignupRoute.tsx';
 
 const App = () => {
   return (
     <Routes>
-      <Route path="/" element={<AppLayout />}>
+      {/* Public routes */}
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/signup" element={<SignupRoute />} />
+
+      {/* Protected routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardRoute />} />
         <Route path="qbank" element={<QBankRoute />} />
@@ -29,6 +44,8 @@ const App = () => {
         <Route path="help" element={<HelpRoute />} />
         <Route path="account" element={<AccountRoute />} />
       </Route>
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext.tsx';
 
 export type NavigationItem = {
   label: string;
@@ -10,6 +11,14 @@ interface AppHeaderProps {
 }
 
 export const AppHeader = ({ navItems }: AppHeaderProps) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <header className="app-header" role="banner">
       <div className="app-header__inner">
@@ -25,6 +34,14 @@ export const AppHeader = ({ navItems }: AppHeaderProps) => {
             ))}
           </div>
         </nav>
+        {user && (
+          <div className="app-header__user">
+            <span className="user-name">{user.full_name}</span>
+            <button type="button" onClick={handleLogout} className="logout-button">
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

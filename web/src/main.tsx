@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
+import { AuthProvider } from './context/AuthContext.tsx';
 import { PracticeSessionProvider } from './context/PracticeSessionContext.tsx';
 import './styles/global.css';
 
@@ -15,9 +16,11 @@ const root = createRoot(container);
 root.render(
   <StrictMode>
     <BrowserRouter>
-      <PracticeSessionProvider>
-        <App />
-      </PracticeSessionProvider>
+      <AuthProvider>
+        <PracticeSessionProvider>
+          <App />
+        </PracticeSessionProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );
