@@ -21,6 +21,8 @@ import type {
 } from '../types/practice.ts';
 import { LAST_SUMMARY_STORAGE_KEY } from '../types/practice.ts';
 import { shuffle } from '../utils/shuffle.ts';
+import { useAuth } from './AuthContext';
+import * as analyticsApi from '../api/userAnalytics';
 
 interface FilterOptions {
   subjects: string[];
@@ -165,6 +167,44 @@ function persistSummary(summary: PracticeSummary) {
   }
 }
 
+async function recordAnalytics(
+  summary: PracticeSummary,
+  questions: QuestionPayload[],
+  token?: string
+) {
+  if (!token) {
+    return; // Skip analytics if user not logged in
+  }
+
+  try {
+    // Record each question attempt
+    const recordPromises = summary.questionPerformances.map((perf) => {
+      const question = questions.find((q) => q.id === perf.questionId);
+      if (!question) return Promise.resolve();
+
+      return analyticsApi.recordAttempt(
+        {
+          question_id: perf.questionId,
+          answer_given: perf.selectedAnswer || undefined,
+          correct_answer: perf.correctAnswer,
+          is_correct: perf.correct,
+          time_seconds: perf.timeSeconds,
+          subject: question.metadata?.subject,
+          system: question.metadata?.system,
+          difficulty: question.metadata?.difficulty,
+          mode: summary.mode === 'tutor' ? 'tutor' : summary.mode === 'timed' ? 'assessment' : 'practice',
+          omitted: !perf.selectedAnswer,
+        },
+        token
+      );
+    });
+
+    await Promise.all(recordPromises);
+  } catch (err) {
+    console.warn('Failed to record analytics', err);
+  }
+}
+
 function finaliseSession(session: PracticeSession, now: number): PracticeSession {
   if (session.summary) {
     return {
@@ -196,6 +236,7 @@ function finaliseSession(session: PracticeSession, now: number): PracticeSession
 }
 
 export const PracticeSessionProvider = ({ children }: { children: ReactNode }) => {
+  const { token } = useAuth();
   const [session, setSession] = useState<PracticeSession | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -425,9 +466,18 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
       if (!current) {
         return current;
       }
-      return finaliseSession(current, Date.now());
+      const finalized = finaliseSession(current, Date.now());
+
+      // Record analytics asynchronously (non-blocking)
+      if (finalized.summary) {
+        recordAnalytics(finalized.summary, finalized.questions, token).catch((err) => {
+          console.error('Analytics recording failed:', err);
+        });
+      }
+
+      return finalized;
     });
-  }, []);
+  }, [token]);
 
   const resetSession = useCallback(() => {
     setSession(null);
