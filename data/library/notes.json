@@ -1,0 +1,20 @@
+[
+  {
+    "id": "note-1",
+    "title": "Valve lesions comparison",
+    "body": "Summarise key auscultation findings. Focus on systolic vs diastolic and manoeuvre responses.",
+    "tags": ["cardiology", "audio"],
+    "article_ids": ["cardiology-basics"],
+    "question_ids": ["question-101"],
+    "bookmarked": false
+  },
+  {
+    "id": "note-2",
+    "title": "Empiric antibiotics ladder",
+    "body": "Start with broad spectrum in septic shock. Narrow coverage after culture data is available.",
+    "tags": ["infectious-disease", "therapy"],
+    "article_ids": ["infectious-diseases"],
+    "question_ids": [],
+    "bookmarked": true
+  }
+]

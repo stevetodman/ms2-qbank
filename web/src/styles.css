@@ -138,6 +138,11 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+.error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .choice-card {
   border-radius: 0.75rem;
   border: 1px solid #dbeafe;

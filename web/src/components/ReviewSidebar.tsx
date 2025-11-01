@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   bookmarkQuestion,
   escalateForReview,
@@ -143,6 +144,13 @@ export const ReviewSidebar = ({ questionId, mode }: ReviewSidebarProps) => {
           <button type="button" onClick={handleEscalate} disabled={isLoading || !canComment}>
             Flag for follow-up
           </button>
+          <Link
+            className="secondary-button"
+            to={`/notes?questionId=${encodeURIComponent(questionId)}`}
+            style={{ textAlign: 'center' }}
+          >
+            Open notes
+          </Link>
         </div>
         <form className="stack" onSubmit={handleTagSubmit}>
           <label htmlFor="tagValue">Add tag</label>

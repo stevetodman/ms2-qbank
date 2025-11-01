@@ -66,11 +66,19 @@ export const HomeRoute = () => {
             <li>Answer questions with immediate or deferred explanations based on your mode.</li>
             <li>Bookmark, tag, and request editorial review directly from the question surface.</li>
             <li>Review the audit history for every question to understand outstanding actions.</li>
+            <li>Browse the medical library for concise refreshers connected to question topics.</li>
+            <li>Capture notebook entries and link them to question reviews for rapid follow-up.</li>
           </ul>
         </div>
-        <footer>
+        <footer className="toolbar" style={{ gap: '1rem', flexWrap: 'wrap' }}>
           <Link className="primary-button" to="/practice">
             Launch Practice Workspace
+          </Link>
+          <Link className="secondary-button" to="/library">
+            Explore medical library
+          </Link>
+          <Link className="secondary-button" to="/notes">
+            Open learner notebook
           </Link>
         </footer>
       </section>
