@@ -49,11 +49,17 @@ services:
       - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SERVICE_NAME=users
+      - GIT_SHA=${GIT_SHA:-unknown}
     ports:
       - "8000:8000"
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
