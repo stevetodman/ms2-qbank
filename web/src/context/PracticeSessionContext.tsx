@@ -470,7 +470,7 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
 
       // Record analytics asynchronously (non-blocking)
       if (finalized.summary) {
-        recordAnalytics(finalized.summary, finalized.questions, token).catch((err) => {
+        recordAnalytics(finalized.summary, finalized.questions, token ?? undefined).catch((err) => {
           console.error('Analytics recording failed:', err);
         });
       }

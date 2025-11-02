@@ -301,7 +301,7 @@ export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
 
         <div className="video-notes-section">
           <QuickNote
-            videoId={video.id}
+            videoId={String(video.id)}
             timestamp={Math.floor(currentTime)}
             compact={true}
             onSuccess={() => {
