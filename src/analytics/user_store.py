@@ -3,9 +3,10 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
-from sqlmodel import Session, SQLModel, create_engine, select, func
+from sqlmodel import Session, SQLModel, select, func
 from sqlalchemy import and_
 
+from db_utils import create_hardened_sqlite_engine, run_migrations_for_engine
 from .user_models import (
     QuestionAttemptDB,
     UserAnalyticsSummaryDB,
@@ -27,13 +28,20 @@ class UserAnalyticsStore:
         if not db_path.startswith("sqlite:///"):
             db_path = f"sqlite:///{db_path}"
 
-        self.engine = create_engine(db_path, echo=False)
+        self.engine = create_hardened_sqlite_engine(db_path, echo=False)
         self._create_tables()
 
     def _create_tables(self) -> None:
         """Create all tables if they don't exist."""
         from .user_models import QuestionAttemptDB, UserAnalyticsSummaryDB
         SQLModel.metadata.create_all(self.engine)
+        self._run_migrations()
+
+    def _run_migrations(self) -> None:
+        """Run SQL migrations to add indices and constraints."""
+        from pathlib import Path
+        migrations_dir = Path(__file__).parent / "migrations"
+        run_migrations_for_engine(self.engine, migrations_dir)
 
     def record_attempt(
         self,

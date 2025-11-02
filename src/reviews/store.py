@@ -13,8 +13,8 @@ from typing import Awaitable, Callable, Iterable, Optional
 
 from sqlalchemy import Column, DateTime
 from sqlmodel import Field, Session, SQLModel, select
-from sqlmodel import create_engine
 
+from db_utils import create_hardened_sqlite_engine
 from .models import ReviewAction, ReviewEvent, ReviewRecord, ReviewerRole
 
 
@@ -91,10 +91,9 @@ class ReviewStore:
         self._analytics = _AnalyticsDispatcher(analytics_hook)
         self._audit_log_path = Path(audit_log_path) if audit_log_path else Path("data/reviews/audit.log")
         self._audit_log_path.parent.mkdir(parents=True, exist_ok=True)
-        self._engine = create_engine(
+        self._engine = create_hardened_sqlite_engine(
             self._database_url(),
-            connect_args={"check_same_thread": False},
-            pool_pre_ping=True,
+            connect_args={"check_same_thread": False, "pool_pre_ping": True},
         )
         self._initialise()
 

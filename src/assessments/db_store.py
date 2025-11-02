@@ -6,8 +6,9 @@ import itertools
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Iterable, Mapping
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, select
 
+from db_utils import create_hardened_sqlite_engine, run_migrations_for_engine
 from .db_models import AssessmentDB, AssessmentScoreResponse
 
 
@@ -19,7 +20,7 @@ class AssessmentDatabaseStore:
         if not db_path.startswith("sqlite:///"):
             db_path = f"sqlite:///{db_path}"
 
-        self.engine = create_engine(db_path, echo=False)
+        self.engine = create_hardened_sqlite_engine(db_path, echo=False)
         self._question_count = max(1, int(question_count))
         self._create_tables()
 
@@ -27,6 +28,7 @@ class AssessmentDatabaseStore:
         """Create all tables if they don't exist."""
         from .db_models import AssessmentDB
         SQLModel.metadata.create_all(self.engine)
+        run_migrations_for_engine(self.engine, Path(__file__).parent / "migrations")
 
     @property
     def question_count(self) -> int:
