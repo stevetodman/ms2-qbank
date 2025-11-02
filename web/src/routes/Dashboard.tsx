@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { DashboardAnnouncement } from '../components/dashboard/AnnouncementsWidget.tsx';
-import { AnnouncementsWidget } from '../components/dashboard/AnnouncementsWidget.tsx';
-import type { DashboardQuickAction } from '../components/dashboard/QuickActionsWidget.tsx';
-import { QuickActionsWidget } from '../components/dashboard/QuickActionsWidget.tsx';
-import { MetricCardsWidget } from '../components/dashboard/MetricCardsWidget.tsx';
-import { ProgressWidget } from '../components/dashboard/ProgressWidget.tsx';
-import { TaskListWidget } from '../components/dashboard/TaskListWidget.tsx';
-import { WeakAreasWidget } from '../components/dashboard/WeakAreasWidget.tsx';
-import { loadDashboardData, type DashboardDataResult } from '../services/dashboard.ts';
-import type { DashboardTask } from '../components/dashboard/TaskListWidget.tsx';
+import type { DashboardAnnouncement } from '../components/dashboard/AnnouncementsWidget';
+import { AnnouncementsWidget } from '../components/dashboard/AnnouncementsWidget';
+import type { DashboardQuickAction } from '../components/dashboard/QuickActionsWidget';
+import { QuickActionsWidget } from '../components/dashboard/QuickActionsWidget';
+import { MetricCardsWidget } from '../components/dashboard/MetricCardsWidget';
+import { ProgressWidget } from '../components/dashboard/ProgressWidget';
+import { TaskListWidget } from '../components/dashboard/TaskListWidget';
+import { WeakAreasWidget } from '../components/dashboard/WeakAreasWidget';
+import { loadDashboardData, type DashboardDataResult } from '../services/dashboard';
+import type { DashboardTask } from '../components/dashboard/TaskListWidget';
 import '../styles/dashboard.css';
 
 export const DashboardRoute = () => {

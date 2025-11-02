@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -12,7 +13,18 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
+
 from .index import QuestionIndex
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="search-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 # Directory containing question JSON payloads. The default points to the
 # repository's ``data/questions`` folder.
@@ -143,12 +155,20 @@ def _initialise_index() -> QuestionIndex:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("Search API starting up")
     app.state.index = _initialise_index()
+    logger.info("Search index initialized", extra={"question_count": len(app.state.index._questions)})
     yield
     # Shutdown - no cleanup needed for index
+    logger.info("Search API shutting down")
 
 
 app = FastAPI(title="MS2 Question Search API", version="1.0.0", lifespan=lifespan)
+
+# Add request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
+
+logger.info("Search API initialized")
 
 
 def _get_index() -> QuestionIndex:

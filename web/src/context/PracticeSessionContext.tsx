@@ -11,16 +11,16 @@ import {
 import {
   fetchSearchFilters,
   searchQuestions,
-} from '../api/search.ts';
+} from '../api/search';
 import type {
   PracticeFilters,
   PracticeMode,
   PracticeSession,
   PracticeSummary,
   QuestionPayload,
-} from '../types/practice.ts';
-import { LAST_SUMMARY_STORAGE_KEY } from '../types/practice.ts';
-import { shuffle } from '../utils/shuffle.ts';
+} from '../types/practice';
+import { LAST_SUMMARY_STORAGE_KEY } from '../types/practice';
+import { shuffle } from '../utils/shuffle';
 import { useAuth } from './AuthContext';
 import * as analyticsApi from '../api/userAnalytics';
 
@@ -470,7 +470,7 @@ export const PracticeSessionProvider = ({ children }: { children: ReactNode }) =
 
       // Record analytics asynchronously (non-blocking)
       if (finalized.summary) {
-        recordAnalytics(finalized.summary, finalized.questions, token).catch((err) => {
+        recordAnalytics(finalized.summary, finalized.questions, token ?? undefined).catch((err) => {
           console.error('Analytics recording failed:', err);
         });
       }

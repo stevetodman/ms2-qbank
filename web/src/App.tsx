@@ -1,19 +1,19 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { ProtectedRoute } from './components/ProtectedRoute.tsx';
-import { AppLayout } from './components/layout/AppLayout.tsx';
-import { DashboardRoute } from './routes/Dashboard.tsx';
-import { QBankRoute } from './routes/QBankRoute.tsx';
-import { SelfAssessmentRoute } from './routes/SelfAssessmentRoute.tsx';
-import { FlashcardsRoute } from './routes/FlashcardsRoute.tsx';
-import { LibraryRoute } from './routes/LibraryRoute.tsx';
-import { StudyPlannerRoute } from './routes/StudyPlannerRoute.tsx';
-import { NotebookRoute } from './routes/NotebookRoute.tsx';
-import { PerformanceRoute } from './routes/PerformanceRoute.tsx';
-import { VideosRoute } from './routes/VideosRoute.tsx';
-import { HelpRoute } from './routes/HelpRoute.tsx';
-import { AccountRoute } from './routes/AccountRoute.tsx';
-import { LoginRoute } from './routes/LoginRoute.tsx';
-import { SignupRoute } from './routes/SignupRoute.tsx';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppLayout } from './components/layout/AppLayout';
+import { DashboardRoute } from './routes/Dashboard';
+import { QBankRoute } from './routes/QBankRoute';
+import { SelfAssessmentRoute } from './routes/SelfAssessmentRoute';
+import { FlashcardsRoute } from './routes/FlashcardsRoute';
+import { LibraryRoute } from './routes/LibraryRoute';
+import { StudyPlannerRoute } from './routes/StudyPlannerRoute';
+import { NotebookRoute } from './routes/NotebookRoute';
+import { PerformanceRoute } from './routes/PerformanceRoute';
+import { VideosRoute } from './routes/VideosRoute';
+import { HelpRoute } from './routes/HelpRoute';
+import { AccountRoute } from './routes/AccountRoute';
+import { LoginRoute } from './routes/LoginRoute';
+import { SignupRoute } from './routes/SignupRoute';
 
 const App = () => {
   return (

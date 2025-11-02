@@ -1,5 +1,5 @@
-import type { PracticeMode } from '../types/practice.ts';
-import { resolveEnv } from '../utils/env.ts';
+import type { PracticeMode } from '../types/practice';
+import { resolveEnv } from '../utils/env';
 
 const REVIEW_API_BASE_URL = resolveEnv('VITE_REVIEW_API_BASE_URL', '/api/reviews');
 

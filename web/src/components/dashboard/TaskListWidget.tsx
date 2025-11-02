@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DashboardWidget } from './DashboardWidget.tsx';
+import { DashboardWidget } from './DashboardWidget';
 
 export interface DashboardTask {
   id: string;

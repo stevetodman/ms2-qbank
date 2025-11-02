@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { SelfAssessmentRoute } from '../routes/SelfAssessmentRoute.tsx';
+import { SelfAssessmentRoute } from '../routes/SelfAssessmentRoute';
 
 describe('SelfAssessmentRoute', () => {
   afterEach(() => {

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AppFrame } from './AppFrame.tsx';
-import { AppHeader, type NavigationItem } from './AppHeader.tsx';
-import { AppSecondaryNav } from './AppSecondaryNav.tsx';
-import { ResponsiveGrid } from './ResponsiveGrid.tsx';
+import { AppFrame } from './AppFrame';
+import { AppHeader, type NavigationItem } from './AppHeader';
+import { AppSecondaryNav } from './AppSecondaryNav';
+import { ResponsiveGrid } from './ResponsiveGrid';
 import '../../styles/layout.css';
 
 const navigationItems: NavigationItem[] = [

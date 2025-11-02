@@ -2,7 +2,7 @@ import { act } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { HomeRoute } from '../routes/HomeRoute.tsx';
+import { HomeRoute } from '../routes/HomeRoute';
 
 describe('HomeRoute analytics integration', () => {
   afterEach(() => {

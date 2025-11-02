@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { PracticeSessionProvider, usePracticeSession } from '../context/PracticeSessionContext.tsx';
-import { LAST_SUMMARY_STORAGE_KEY, type PracticeFilters, type QuestionPayload } from '../types/practice.ts';
+import { PracticeSessionProvider, usePracticeSession } from '../context/PracticeSessionContext';
+import { LAST_SUMMARY_STORAGE_KEY, type PracticeFilters, type QuestionPayload } from '../types/practice';
 
 describe('PracticeSessionContext', () => {
   const sampleQuestion: QuestionPayload = {

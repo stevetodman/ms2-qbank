@@ -4,8 +4,8 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoginForm } from '../components/LoginForm.tsx';
-import { useAuth } from '../context/AuthContext.tsx';
+import { LoginForm } from '../components/LoginForm';
+import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
 
 export function LoginRoute() {

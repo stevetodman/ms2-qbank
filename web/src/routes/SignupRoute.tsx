@@ -4,8 +4,8 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SignupForm } from '../components/SignupForm.tsx';
-import { useAuth } from '../context/AuthContext.tsx';
+import { SignupForm } from '../components/SignupForm';
+import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
 
 export function SignupRoute() {

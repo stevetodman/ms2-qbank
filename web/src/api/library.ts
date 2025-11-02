@@ -6,8 +6,8 @@ import type {
   NoteFilterParams,
   NotebookEntry,
   UpdateNotePayload,
-} from '../types/library.ts';
-import { resolveEnv } from '../utils/env.ts';
+} from '../types/library';
+import { resolveEnv } from '../utils/env';
 import { apiClient } from './client';
 
 const LIBRARY_API_BASE_URL = resolveEnv('VITE_LIBRARY_API_BASE_URL', 'http://localhost:8004');

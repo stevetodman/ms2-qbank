@@ -1,4 +1,4 @@
-import { DashboardWidget } from './DashboardWidget.tsx';
+import { DashboardWidget } from './DashboardWidget';
 
 export interface DashboardAnnouncement {
   id: string;

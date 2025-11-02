@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Depends, FastAPI, HTTPException, status
+
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 
 from .models import StudyPlanCreateRequest, StudyPlanModel
 from .service import StudyPlannerService
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="planner-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 
 class PlannerDependencies:
@@ -24,6 +37,11 @@ def create_app(service: StudyPlannerService | None = None) -> FastAPI:
     planner_service = service or StudyPlannerService()
     dependencies = PlannerDependencies(planner_service)
     app = FastAPI(title="MS2 Study Planner API", version="1.0.0")
+
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
+    logger.info("Planner API initialized")
 
     def get_service() -> StudyPlannerService:
         return dependencies.get_service()

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AssessmentQuestion,
   AssessmentResponseItem,
-} from '../api/assessments.ts';
-import { formatSeconds } from '../utils/time.ts';
-import { useCountdown } from '../hooks/useCountdown.ts';
+} from '../api/assessments';
+import { formatSeconds } from '../utils/time';
+import { useCountdown } from '../hooks/useCountdown';
 
 interface AssessmentDeliveryProps {
   questions: AssessmentQuestion[];

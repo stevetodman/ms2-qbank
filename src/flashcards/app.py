@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Header, status
 
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 from users.auth import decode_access_token
 
 from .models import (
@@ -21,6 +23,15 @@ from .models import (
     ReviewSubmit,
 )
 from .store import FlashcardStore
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="flashcards-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 
 def optional_auth(authorization: Optional[str] = Header(None)) -> Optional[int]:
@@ -63,9 +74,14 @@ def create_app(*, store: Optional[FlashcardStore] = None) -> FastAPI:
     """
     app = FastAPI(title="MS2 QBank Flashcard API", version="1.0.0")
 
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
     # Initialize flashcard store
     flashcard_store = store or FlashcardStore()
     app.state.flashcard_store = flashcard_store
+
+    logger.info("Flashcards API initialized")
 
     def get_store() -> FlashcardStore:
         """Dependency to get the flashcard store instance."""

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchStudyPlans, type StudyPlan } from '../api/planner.ts';
-import { StudyPlannerWidget } from '../components/StudyPlannerWidget.tsx';
+import { fetchStudyPlans, type StudyPlan } from '../api/planner';
+import { StudyPlannerWidget } from '../components/StudyPlannerWidget';
 
 export const StudyPlannerRoute = () => {
   const [plan, setPlan] = useState<StudyPlan | null>(null);

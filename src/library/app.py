@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 
 from .models import (
     Article,
@@ -19,6 +22,15 @@ from .models import (
     UpdateNoteRequest,
 )
 from .store import LibraryStore
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="library-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 DEFAULT_DATA_DIR = Path("data/library")
 
@@ -34,7 +46,13 @@ def create_app(*, store: Optional[LibraryStore] = None, data_dir: Optional[Path]
     """Instantiate the FastAPI app with configured dependencies."""
 
     app = FastAPI(title="MS2 QBank Library API", version="1.0.0")
+
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
     app.state.library_store = store or _create_store(data_dir)
+
+    logger.info("Library API initialized")
 
     def get_store() -> LibraryStore:
         return app.state.library_store

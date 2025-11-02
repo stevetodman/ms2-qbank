@@ -1,12 +1,12 @@
-import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics.ts';
-import { fetchStudyPlans, type StudyPlan } from '../api/planner.ts';
-import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice.ts';
-import type { DashboardAnnouncement } from '../components/dashboard/AnnouncementsWidget.tsx';
-import type { DashboardMetric } from '../components/dashboard/MetricCardsWidget.tsx';
-import type { DashboardProgressPoint } from '../components/dashboard/ProgressWidget.tsx';
-import type { DashboardTask } from '../components/dashboard/TaskListWidget.tsx';
-import type { DashboardQuickAction } from '../components/dashboard/QuickActionsWidget.tsx';
-import type { DashboardWeakArea } from '../components/dashboard/WeakAreasWidget.tsx';
+import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics';
+import { fetchStudyPlans, type StudyPlan } from '../api/planner';
+import { LAST_SUMMARY_STORAGE_KEY, type PracticeSummary } from '../types/practice';
+import type { DashboardAnnouncement } from '../components/dashboard/AnnouncementsWidget';
+import type { DashboardMetric } from '../components/dashboard/MetricCardsWidget';
+import type { DashboardProgressPoint } from '../components/dashboard/ProgressWidget';
+import type { DashboardTask } from '../components/dashboard/TaskListWidget';
+import type { DashboardQuickAction } from '../components/dashboard/QuickActionsWidget';
+import type { DashboardWeakArea } from '../components/dashboard/WeakAreasWidget';
 
 export interface DashboardSnapshot {
   tasks: DashboardTask[];

@@ -1,4 +1,4 @@
-import { resolveEnv } from '../utils/env.ts';
+import { resolveEnv } from '../utils/env';
 
 const ANALYTICS_API_BASE_URL = resolveEnv('VITE_ANALYTICS_API_BASE_URL', '/api/analytics');
 

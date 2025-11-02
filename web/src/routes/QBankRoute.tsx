@@ -1,6 +1,6 @@
-import { PracticeSetup } from '../components/PracticeSetup.tsx';
-import { PracticeWorkspace } from '../components/PracticeWorkspace.tsx';
-import { usePracticeSession } from '../context/PracticeSessionContext.tsx';
+import { PracticeSetup } from '../components/PracticeSetup';
+import { PracticeWorkspace } from '../components/PracticeWorkspace';
+import { usePracticeSession } from '../context/PracticeSessionContext';
 
 export const QBankRoute = () => {
   const { session } = usePracticeSession();

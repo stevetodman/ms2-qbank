@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import type { AssessmentSubmissionResponse } from '../api/assessments.ts';
-import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics.ts';
+import type { AssessmentSubmissionResponse } from '../api/assessments';
+import { fetchLatestAnalytics, type AnalyticsSnapshot } from '../api/analytics';
 
 interface UseAssessmentAnalyticsOptions {
   onSnapshot?: (snapshot: AnalyticsSnapshot) => void;

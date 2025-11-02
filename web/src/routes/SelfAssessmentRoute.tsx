@@ -4,13 +4,13 @@ import type {
   AssessmentResponseItem,
   AssessmentSubmissionResponse,
   AssessmentBlueprint,
-} from '../api/assessments.ts';
-import { createAssessment, startAssessment, submitAssessment } from '../api/assessments.ts';
-import { AssessmentSetupForm } from '../components/AssessmentSetupForm.tsx';
-import { AssessmentDelivery } from '../components/AssessmentDelivery.tsx';
-import { AssessmentSummary } from '../components/AssessmentSummary.tsx';
-import { useAssessmentAnalytics } from '../hooks/useAssessmentAnalytics.ts';
-import type { AnalyticsSnapshot } from '../api/analytics.ts';
+} from '../api/assessments';
+import { createAssessment, startAssessment, submitAssessment } from '../api/assessments';
+import { AssessmentSetupForm } from '../components/AssessmentSetupForm';
+import { AssessmentDelivery } from '../components/AssessmentDelivery';
+import { AssessmentSummary } from '../components/AssessmentSummary';
+import { useAssessmentAnalytics } from '../hooks/useAssessmentAnalytics';
+import type { AnalyticsSnapshot } from '../api/analytics';
 
 const enum AssessmentStage {
   Setup = 'setup',

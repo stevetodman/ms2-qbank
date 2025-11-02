@@ -1,5 +1,5 @@
-import type { PracticeSession, PracticeSummary as PracticeSummaryData } from '../types/practice.ts';
-import { formatSeconds } from '../utils/time.ts';
+import type { PracticeSession, PracticeSummary as PracticeSummaryData } from '../types/practice';
+import { formatSeconds } from '../utils/time';
 
 interface PracticeSummaryProps {
   session: PracticeSession;

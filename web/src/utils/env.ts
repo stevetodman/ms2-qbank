@@ -23,3 +23,7 @@ export function resolveEnv(key: string, fallback: string): string {
 
   return fallback;
 }
+
+export function getBaseUrl(): string {
+  return resolveEnv('VITE_API_BASE_URL', 'http://localhost:8000');
+}

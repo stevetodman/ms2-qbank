@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { PracticeSummary } from '../components/PracticeSummary.tsx';
+import { PracticeSummary } from '../components/PracticeSummary';
 import type {
   PracticeFilters,
   PracticeSession,
   PracticeSummary as PracticeSummaryData,
   QuestionPayload,
-} from '../types/practice.ts';
+} from '../types/practice';
 
 describe('PracticeSummary component', () => {
   const filters: PracticeFilters = {

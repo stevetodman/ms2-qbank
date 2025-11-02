@@ -1,4 +1,4 @@
-import { ArticleBrowser } from '../components/ArticleBrowser.tsx';
+import { ArticleBrowser } from '../components/ArticleBrowser';
 
 export const LibraryRoute = () => {
   return (
