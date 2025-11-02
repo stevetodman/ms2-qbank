@@ -10,6 +10,7 @@ from typing import Optional, Sequence
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 from analytics.service import AnalyticsService
 from .auth import (
     AuthenticationMiddleware,
@@ -20,6 +21,15 @@ from .auth import (
 from .auth_providers import JWKSProviderConfig, JWKSFetcher, jwks_bearer_resolver, parse_provider_configs
 from .models import InvalidTransitionError, ReviewAction, ReviewEvent, ReviewerRole
 from .store import ReviewStore
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="reviews-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 DEFAULT_STORE_PATH = Path("data/reviews/review_state.db")
 
@@ -108,20 +118,27 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Startup
+        logger.info("Reviews API starting up")
         await service.start()
         store_instance.set_analytics_hook(service.handle_status_change)
         yield
         # Shutdown
+        logger.info("Reviews API shutting down")
         store_instance.set_analytics_hook(None)
         await service.shutdown()
 
     app = FastAPI(title="MS2 QBank Review API", lifespan=lifespan)
+
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(AuthenticationMiddleware, resolver=resolver)
 
     app.state.review_store = store_instance
     app.state.analytics_service = service
     app.state.analytics_scheduler = service.scheduler
     app.include_router(service.router)
+
+    logger.info("Reviews API initialized")
 
     def get_store() -> ReviewStore:
         return app.state.review_store

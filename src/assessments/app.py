@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Iterable, Mapping, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 from analytics.service import AnalyticsService
 from analytics.hooks import AssessmentAnalyticsHook
 from .models import (
@@ -21,6 +23,15 @@ from .models import (
     AssessmentSubmitRequest,
 )
 from .store import AssessmentStore
+
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="assessments-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
 
 _DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "questions"
 
@@ -68,15 +79,23 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Startup
+        logger.info("Assessments API starting up")
         await service.start()
         yield
         # Shutdown
+        logger.info("Assessments API shutting down")
         await service.shutdown()
 
     app = FastAPI(title="MS2 QBank Assessment API", lifespan=lifespan)
+
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
     app.state.assessment_store = store
     app.state.analytics_service = service
     app.include_router(service.router)
+
+    logger.info("Assessments API initialized", extra={"question_count": len(dataset)})
 
     deps = AssessmentDependencies(store)
 

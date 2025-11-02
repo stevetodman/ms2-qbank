@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from logging_config import configure_logging, get_logger, RequestLoggingMiddleware
 
 from .auth import (
     create_access_token,
@@ -25,6 +28,15 @@ from .models import (
 )
 from .store import UserStore
 
+# Configure structured logging
+configure_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    service_name="users-api",
+    json_format=(os.getenv("LOG_FORMAT", "json") == "json"),
+)
+
+logger = get_logger(__name__)
+
 security = HTTPBearer()
 
 
@@ -39,9 +51,14 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
     """
     app = FastAPI(title="MS2 QBank User API", version="1.0.0")
 
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
     # Initialize user store
     user_store = store or UserStore()
     app.state.user_store = user_store
+
+    logger.info("Users API initialized", extra={"store_type": type(user_store).__name__})
 
     def get_store() -> UserStore:
         """Dependency to get the user store instance."""
@@ -101,7 +118,16 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
         """
         try:
             user = store.create_user(user_data)
+            logger.info("User registered successfully", extra={
+                "user_id": user.id,
+                "email": user.email,
+                "subscription_tier": user.subscription_tier,
+            })
         except ValueError as exc:
+            logger.warning("User registration failed", extra={
+                "email": user_data.email,
+                "reason": str(exc),
+            })
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
@@ -137,6 +163,7 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
         user = store.authenticate(credentials.email, credentials.password)
 
         if user is None:
+            logger.warning("Login failed", extra={"email": credentials.email})
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -152,6 +179,11 @@ def create_app(*, store: Optional[UserStore] = None) -> FastAPI:
             token=token_data["refresh_token"],
             expires_at=token_data["refresh_expires_at"],
         )
+
+        logger.info("User logged in successfully", extra={
+            "user_id": user.id,
+            "email": user.email,
+        })
 
         return TokenResponse(
             access_token=token_data["access_token"],
