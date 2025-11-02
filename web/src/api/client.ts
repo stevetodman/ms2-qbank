@@ -1,83 +1,28 @@
 /**
  * API client utility for making HTTP requests
+ * Simple fetch wrapper that automatically parses JSON and throws on errors
  */
 
-import { getBaseUrl } from '../utils/env';
+/**
+ * Make an API request
+ * @param url - Full URL to request
+ * @param options - Fetch options
+ * @returns Parsed JSON response
+ * @throws Error if response is not ok
+ */
+export async function apiClient<T = any>(url: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 
-export interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number | boolean>;
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response.json();
 }
-
-class ApiClient {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = getBaseUrl();
-  }
-
-  private buildUrl(path: string, params?: Record<string, string | number | boolean>): string {
-    const url = new URL(path, this.baseUrl);
-
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value));
-      });
-    }
-
-    return url.toString();
-  }
-
-  private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { params, ...fetchOptions } = options;
-    const url = this.buildUrl(path, params);
-
-    const response = await fetch(url, {
-      ...fetchOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return response.json();
-  }
-
-  async get<T>(path: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, { ...options, method: 'GET' });
-  }
-
-  async post<T>(path: string, data?: unknown, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, {
-      ...options,
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async put<T>(path: string, data?: unknown, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, {
-      ...options,
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async patch<T>(path: string, data?: unknown, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, {
-      ...options,
-      method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, { ...options, method: 'DELETE' });
-  }
-}
-
-export const apiClient = new ApiClient();

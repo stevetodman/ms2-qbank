@@ -29,7 +29,7 @@ const config: Config = {
     '!src/**/__tests__/**',
   ],
   // Coverage thresholds - enforce minimum coverage
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 60,
       functions: 60,
