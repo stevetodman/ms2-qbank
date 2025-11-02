@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.engine import Engine
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, select
 
+from db_utils import create_hardened_sqlite_engine, run_migrations_for_engine
 from .models import (
     PlaylistDB,
     PlaylistVideoDB,
@@ -31,8 +32,9 @@ class VideoStore:
             db_path = Path(database_url.replace("sqlite:///", ""))
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine: Engine = create_engine(database_url)
+        self.engine: Engine = create_hardened_sqlite_engine(database_url)
         SQLModel.metadata.create_all(self.engine)
+        run_migrations_for_engine(self.engine, Path(__file__).parent / "migrations")
 
     # ===== VIDEO OPERATIONS =====
 
