@@ -1,9 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import App from './App.tsx';
-import { AuthProvider } from './context/AuthContext.tsx';
-import { PracticeSessionProvider } from './context/PracticeSessionContext.tsx';
+import App from './App';
+import { AuthProvider } from './context/AuthContext';
+import { PracticeSessionProvider } from './context/PracticeSessionContext';
 import './styles/global.css';
 
 const container = document.getElementById('root');

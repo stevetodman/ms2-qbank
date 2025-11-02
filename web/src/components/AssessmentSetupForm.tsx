@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import type { AssessmentBlueprint } from '../api/assessments.ts';
+import type { AssessmentBlueprint } from '../api/assessments';
 
 interface AssessmentSetupFormProps {
   onSubmit: (blueprint: AssessmentBlueprint) => Promise<void> | void;

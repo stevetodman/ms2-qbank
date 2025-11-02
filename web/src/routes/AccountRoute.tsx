@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext.tsx';
+import { useAuth } from '../context/AuthContext';
 
 export const AccountRoute = () => {
   const { user, updateUserProfile, loading } = useAuth();

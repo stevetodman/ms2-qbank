@@ -5,8 +5,8 @@ import {
   fetchNotes,
   linkNoteToQuestion,
   setNoteBookmark,
-} from '../api/library.ts';
-import type { NotebookEntry } from '../types/library.ts';
+} from '../api/library';
+import type { NotebookEntry } from '../types/library';
 
 interface NotebookWorkspaceProps {
   initialQuestionId?: string;

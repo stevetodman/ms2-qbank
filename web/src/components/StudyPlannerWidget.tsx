@@ -1,4 +1,4 @@
-import type { StudyPlan } from '../api/planner.ts';
+import type { StudyPlan } from '../api/planner';
 
 interface StudyPlannerWidgetProps {
   plan: StudyPlan | null;

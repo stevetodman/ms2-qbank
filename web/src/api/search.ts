@@ -1,5 +1,5 @@
-import type { PracticeFilters, QuestionPayload } from '../types/practice.ts';
-import { resolveEnv } from '../utils/env.ts';
+import type { PracticeFilters, QuestionPayload } from '../types/practice';
+import { resolveEnv } from '../utils/env';
 
 const SEARCH_API_BASE_URL = resolveEnv('VITE_SEARCH_API_BASE_URL', '/api/search');
 

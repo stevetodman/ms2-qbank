@@ -1,4 +1,4 @@
-import type { AssessmentSubmissionResponse } from '../api/assessments.ts';
+import type { AssessmentSubmissionResponse } from '../api/assessments';
 
 interface AssessmentSummaryProps {
   submission: AssessmentSubmissionResponse;

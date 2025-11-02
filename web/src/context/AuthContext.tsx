@@ -3,7 +3,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import * as authApi from '../api/auth.ts';
+import * as authApi from '../api/auth';
 
 const TOKEN_STORAGE_KEY = 'auth_token';
 const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';

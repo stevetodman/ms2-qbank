@@ -7,8 +7,8 @@ import {
   submitReviewAction,
   tagQuestion,
   type ReviewSummary,
-} from '../api/reviews.ts';
-import type { PracticeMode } from '../types/practice.ts';
+} from '../api/reviews';
+import type { PracticeMode } from '../types/practice';
 
 const REVIEWER_ID = 'demo.learner';
 

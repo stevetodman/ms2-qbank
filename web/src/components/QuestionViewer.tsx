@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import type { PracticeMode, QuestionPayload } from '../types/practice.ts';
+import type { PracticeMode, QuestionPayload } from '../types/practice';
 import { CreateSmartCardModal } from './CreateSmartCardModal';
 import { QuickNote } from './QuickNote';
 

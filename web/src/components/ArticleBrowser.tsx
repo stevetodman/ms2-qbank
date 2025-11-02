@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchArticleTags, fetchArticles, setArticleBookmark } from '../api/library.ts';
-import type { Article } from '../types/library.ts';
+import { fetchArticleTags, fetchArticles, setArticleBookmark } from '../api/library';
+import type { Article } from '../types/library';
 
 export const ArticleBrowser = () => {
   const [articles, setArticles] = useState<Article[]>([]);

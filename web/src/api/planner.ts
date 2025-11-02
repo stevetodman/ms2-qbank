@@ -1,4 +1,4 @@
-import { resolveEnv } from '../utils/env.ts';
+import { resolveEnv } from '../utils/env';
 
 const PLANNER_API_BASE_URL = resolveEnv('VITE_PLANNER_API_BASE_URL', '/api/planner');
 

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { usePracticeSession } from '../context/PracticeSessionContext.tsx';
-import { formatSeconds } from '../utils/time.ts';
-import { QuestionViewer } from './QuestionViewer.tsx';
-import { ReviewSidebar } from './ReviewSidebar.tsx';
-import { PracticeSummary } from './PracticeSummary.tsx';
+import { usePracticeSession } from '../context/PracticeSessionContext';
+import { formatSeconds } from '../utils/time';
+import { QuestionViewer } from './QuestionViewer';
+import { ReviewSidebar } from './ReviewSidebar';
+import { PracticeSummary } from './PracticeSummary';
 
 export const PracticeWorkspace = () => {
   const { session, selectAnswer, goToQuestion, revealExplanation, completeSession } = usePracticeSession();

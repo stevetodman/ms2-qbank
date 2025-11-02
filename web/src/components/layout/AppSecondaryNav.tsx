@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { NavLink } from 'react-router-dom';
-import type { NavigationItem } from './AppHeader.tsx';
+import type { NavigationItem } from './AppHeader';
 
 interface AppSecondaryNavProps {
   navItems: NavigationItem[];

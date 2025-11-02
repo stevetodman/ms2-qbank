@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { NotebookWorkspace } from '../components/NotebookWorkspace.tsx';
+import { NotebookWorkspace } from '../components/NotebookWorkspace';
 
 export const NotebookRoute = () => {
   const [params] = useSearchParams();

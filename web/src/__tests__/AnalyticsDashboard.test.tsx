@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
-import type { AnalyticsSnapshot } from '../api/analytics.ts';
-import { AnalyticsDashboard } from '../components/AnalyticsDashboard.tsx';
+import type { AnalyticsSnapshot } from '../api/analytics';
+import { AnalyticsDashboard } from '../components/AnalyticsDashboard';
 
 describe('AnalyticsDashboard', () => {
   const snapshot: AnalyticsSnapshot = {

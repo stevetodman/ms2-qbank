@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AssessmentSetupForm } from '../components/AssessmentSetupForm.tsx';
+import { AssessmentSetupForm } from '../components/AssessmentSetupForm';
 
 describe('AssessmentSetupForm', () => {
   it('submits normalised blueprint data', async () => {

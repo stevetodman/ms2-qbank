@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePracticeSession } from '../context/PracticeSessionContext.tsx';
-import type { PracticeFilters, PracticeMode } from '../types/practice.ts';
+import { usePracticeSession } from '../context/PracticeSessionContext';
+import type { PracticeFilters, PracticeMode } from '../types/practice';
 
 const DEFAULT_FILTERS: PracticeFilters = {
   query: '',

@@ -1,4 +1,4 @@
-import type { AnalyticsSnapshot } from '../api/analytics.ts';
+import type { AnalyticsSnapshot } from '../api/analytics';
 
 interface AnalyticsDashboardProps {
   snapshot: AnalyticsSnapshot;

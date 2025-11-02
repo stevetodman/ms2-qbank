@@ -2,7 +2,7 @@
  * API client for user authentication endpoints
  */
 
-import { getBaseUrl } from '../utils/env.ts';
+import { getBaseUrl } from '../utils/env';
 
 const AUTH_API_BASE = `${getBaseUrl()}/auth`;
 
