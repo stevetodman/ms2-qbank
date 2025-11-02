@@ -7,8 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, select
 
+from db_utils import create_hardened_sqlite_engine
 from .auth import hash_password, verify_password
 from .models import RefreshToken, User, UserCreate, UserUpdate
 
@@ -27,7 +28,7 @@ class UserStore:
             db_path = Path(database_url.replace("sqlite:///", ""))
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine = create_engine(database_url, echo=False)
+        self.engine = create_hardened_sqlite_engine(database_url, echo=False)
         SQLModel.metadata.create_all(self.engine)
 
     def create_user(self, user_data: UserCreate) -> User:

@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, select
 
+from db_utils import create_hardened_sqlite_engine
 from .db_models import StudyPlanDB, StudyPlanTaskDB
 from .scheduler import StudyPlan, StudyPlanTask
 
@@ -25,7 +26,7 @@ class StudyPlanStore:
             db_path = Path(database_url.replace("sqlite:///", ""))
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine = create_engine(database_url, echo=False)
+        self.engine = create_hardened_sqlite_engine(database_url, echo=False)
         SQLModel.metadata.create_all(self.engine)
 
     def save_plan(self, plan: StudyPlan, user_id: Optional[int] = None) -> StudyPlanDB:

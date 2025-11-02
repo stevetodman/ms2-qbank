@@ -4,8 +4,9 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
-from sqlmodel import Session, SQLModel, create_engine, select, or_
+from sqlmodel import Session, SQLModel, select, or_
 
+from db_utils import create_hardened_sqlite_engine
 from .db_models import ArticleDB, NotebookEntryDB, ArticleResponse, NoteResponse
 
 
@@ -17,7 +18,7 @@ class LibraryDatabaseStore:
         if not db_path.startswith("sqlite:///"):
             db_path = f"sqlite:///{db_path}"
 
-        self.engine = create_engine(db_path, echo=False)
+        self.engine = create_hardened_sqlite_engine(db_path, echo=False)
         self._create_tables()
 
     def _create_tables(self) -> None:

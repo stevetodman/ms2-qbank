@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
@@ -64,18 +65,18 @@ def create_app(
     hook = analytics_hook or AssessmentAnalyticsHook(scheduler=service.scheduler)
     store = AssessmentStore(dataset, question_count=question_count, analytics_hook=hook)
 
-    app = FastAPI(title="MS2 QBank Assessment API")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Startup
+        await service.start()
+        yield
+        # Shutdown
+        await service.shutdown()
+
+    app = FastAPI(title="MS2 QBank Assessment API", lifespan=lifespan)
     app.state.assessment_store = store
     app.state.analytics_service = service
     app.include_router(service.router)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        await service.start()
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        await service.shutdown()
 
     deps = AssessmentDependencies(store)
 

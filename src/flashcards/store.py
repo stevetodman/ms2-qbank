@@ -7,8 +7,9 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from sqlmodel import Session, SQLModel, create_engine, select, func
+from sqlmodel import Session, SQLModel, select, func
 
+from db_utils import create_hardened_sqlite_engine, run_migrations_for_engine
 from .models import CardReviewDB, DeckDB, FlashcardDB
 from .spaced_repetition import ReviewState, SpacedRepetitionScheduler
 
@@ -27,8 +28,9 @@ class FlashcardStore:
             db_path = Path(database_url.replace("sqlite:///", ""))
             db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine = create_engine(database_url, echo=False)
+        self.engine = create_hardened_sqlite_engine(database_url, echo=False)
         SQLModel.metadata.create_all(self.engine)
+        run_migrations_for_engine(self.engine, Path(__file__).parent / "migrations")
         self.scheduler = SpacedRepetitionScheduler()
 
     # Deck operations ----------------------------------------------------------

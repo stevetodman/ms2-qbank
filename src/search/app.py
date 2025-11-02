@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -139,12 +140,15 @@ def _initialise_index() -> QuestionIndex:
     return QuestionIndex(questions)
 
 
-app = FastAPI(title="MS2 Question Search API", version="1.0.0")
-
-
-@app.on_event("startup")
-def _load_index() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     app.state.index = _initialise_index()
+    yield
+    # Shutdown - no cleanup needed for index
+
+
+app = FastAPI(title="MS2 Question Search API", version="1.0.0", lifespan=lifespan)
 
 
 def _get_index() -> QuestionIndex:

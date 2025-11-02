@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -101,25 +102,26 @@ def create_app(
             raise RuntimeError("JWT secret must be configured for the review API")
         resolver = bearer_jwt_resolver(secret)
 
-    app = FastAPI(title="MS2 QBank Review API")
-    app.add_middleware(AuthenticationMiddleware, resolver=resolver)
-
     store_instance = store or _get_default_store()
     service = analytics_service or AnalyticsService()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Startup
+        await service.start()
+        store_instance.set_analytics_hook(service.handle_status_change)
+        yield
+        # Shutdown
+        store_instance.set_analytics_hook(None)
+        await service.shutdown()
+
+    app = FastAPI(title="MS2 QBank Review API", lifespan=lifespan)
+    app.add_middleware(AuthenticationMiddleware, resolver=resolver)
+
     app.state.review_store = store_instance
     app.state.analytics_service = service
     app.state.analytics_scheduler = service.scheduler
     app.include_router(service.router)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        await service.start()
-        store_instance.set_analytics_hook(service.handle_status_change)
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        store_instance.set_analytics_hook(None)
-        await service.shutdown()
 
     def get_store() -> ReviewStore:
         return app.state.review_store
